@@ -1,0 +1,36 @@
+import { test, expect } from '@playwright/test';
+
+test('a scored race shows cooling failure, brake fire, retirement and zero finishing points', async ({page})=>{
+  const errors=[];page.on('pageerror',error=>errors.push(error.stack));
+  await page.goto('/');
+  await page.getByRole('tab',{name:'Power',exact:true}).click();
+  await page.getByRole('button',{name:'Pick up Uncooled sprint package'}).click();
+  await page.getByRole('button',{name:'Fit Uncooled sprint package to car',exact:true}).click();
+  await expect(page.locator('#engineering-panel')).toContainText('retires on lap 5');
+  await page.getByRole('button',{name:'Ready to qualify'}).click();
+  await page.getByRole('button',{name:'Continue without bonus'}).click();
+  await expect(page.getByRole('button',{name:'Lock build & race'})).toBeVisible({timeout:30000});
+  await page.getByRole('button',{name:'Lock build & race'}).click();
+  await page.getByRole('button',{name:'Change playback speed'}).click();
+  const player=page.locator('[data-driver-row="you"]');
+  await expect(player).toContainText('TEMPERATURE HIGH',{timeout:80000});
+  await expect(player).toContainText('BRAKE FIRE',{timeout:100000});
+  await page.waitForTimeout(1200);
+  await page.getByRole('button',{name:'Pause race'}).click();
+  await page.getByRole('button',{name:'Follow me',exact:true}).click();
+  await expect(page.locator('#incident-banner')).toContainText('Race-ending failure');
+  await page.waitForTimeout(700);
+  await page.screenshot({path:'artifacts/race-fire.png',fullPage:true});
+  await page.getByRole('button',{name:'Resume race'}).click();
+  await expect(player).toContainText('RETIRED',{timeout:20000});
+  await expect(page.locator('[data-action="boost"]')).toBeDisabled();
+  await expect(page.locator('#your-position')).toHaveText('OUT');
+  await expect(page.locator('#race-radio')).toContainText('Your car has retired');
+  await page.getByRole('button',{name:'Pause race'}).click();
+  await page.screenshot({path:'artifacts/race-retired.png',fullPage:true});
+  await page.getByRole('button',{name:'Skip to finish'}).click();
+  await expect(page.locator('.standings>.is-you')).toContainText('RETIRED');
+  await expect(page.locator('.score-breakdown>div').first()).toContainText('+0');
+  await expect(page.locator('.race-debrief')).toContainText('RETIRED');
+  expect(errors).toEqual([]);
+});

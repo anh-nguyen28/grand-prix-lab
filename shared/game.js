@@ -1,0 +1,95 @@
+import { BUDGET, COURSE, DEFAULT_BUILD, DEMO_TEAMS, MAX_CHANGED_SLOTS, PARTS, PRACTICE_RUNS, SLOTS } from './content.js';
+import { buildStats, racePoints, simulate } from './simulation.js';
+import { addPlayerBoost, createRace, finishRace } from './race.js';
+
+export function createGame(profile = { name: 'You', mode: 'solo' }) {
+  return {
+    version: 1, phase: 'practice', profile, build: { ...DEFAULT_BUILD },
+    clues: [], sensorLocked: false, prediction: null, predictionLocked: false,
+    runs: [], qualifying: null, qualifyingBuild: null, field: [], race: null, score: null,
+  };
+}
+export function changedSlots(state, build = state.build) {
+  return state.qualifyingBuild ? SLOTS.filter(slot => build[slot] !== state.qualifyingBuild[slot]) : [];
+}
+function reject(message) { return { ok: false, message }; }
+
+// Intent in, validated state out. No DOM, network, clocks, or browser storage.
+export function transition(previous, command) {
+  const state = structuredClone(previous);
+  const editable = ['practice', 'adjust'].includes(state.phase);
+  switch (command.type) {
+    case 'SET_PROFILE': {
+      if (state.phase !== 'practice') return reject('Finish this round before starting a new garage.');
+      const name = String(command.name ?? '').trim().slice(0, 24);
+      if (!name) return reject('Give your garage a name first.');
+      state.profile = { name, mode: command.mode === 'team' ? 'team' : 'solo' };
+      break;
+    }
+    case 'SET_PART': {
+      if (!editable) return reject('Your build is locked for this run.');
+      const part = PARTS[command.id];
+      if (!part) return reject('That part is not in this garage.');
+      if (part.slot === 'sensor' && state.sensorLocked) return reject('Your sensor stays fitted after the first scan.');
+      const build = { ...state.build, [part.slot]: part.id };
+      if (buildStats(build).cost > BUDGET) return reject('That combination costs more than 100 credits. Try a cheaper part.');
+      if (state.phase === 'adjust' && changedSlots(state, build).length > MAX_CHANGED_SLOTS) return reject('You can change two slots after qualifying. Revert a changed slot first.');
+      state.build = build;
+      break;
+    }
+    case 'SCAN':
+      if (state.phase !== 'practice') return reject('Field research closes after practice.');
+      if (state.clues.length >= 3) return reject('You have collected all three observations.');
+      state.sensorLocked = true;
+      state.clues.push(COURSE.clues[state.build.sensor][state.clues.length]);
+      break;
+    case 'PREDICT':
+      if (state.phase !== 'practice' || state.predictionLocked) return reject('Your prediction is locked.');
+      if (!['road', 'sand', 'rock'].includes(command.terrain)) return reject('Choose road, sand, or rock.');
+      state.prediction = command.terrain;
+      state.predictionLocked = true;
+      break;
+    case 'PRACTICE':
+      if (state.phase !== 'practice') return reject('Practice has finished.');
+      if (state.runs.length >= PRACTICE_RUNS) return reject('Both practice runs are used. You can still change your build.');
+      state.predictionLocked = true;
+      state.runs.push(simulate(state.build));
+      break;
+    case 'QUALIFY':
+      if (state.phase !== 'practice') return reject('This qualifying run is already locked.');
+      state.predictionLocked = true;
+      state.sensorLocked = true;
+      state.qualifyingBuild = { ...state.build };
+      state.qualifying = simulate(state.build);
+      state.phase = 'qualifying';
+      break;
+    case 'FINISH_QUALIFY':
+      if (state.phase !== 'qualifying') return reject('There is no qualifying run in progress.');
+      state.phase = 'adjust';
+      break;
+    case 'RACE': {
+      if (state.phase !== 'adjust') return reject('Complete qualifying before entering the race.');
+      state.race = createRace([{ id: 'you', name: state.profile.name, team: 'Your team', color: '#ff3b38', build: state.build }, ...DEMO_TEAMS], state.qualifyingBuild);
+      state.phase = 'race';
+      break;
+    }
+    case 'BOOST': {
+      if (state.phase !== 'race') return reject('ERS is only available during the race.');
+      const result = addPlayerBoost(state.race, command.elapsed);
+      if (!result.ok) return reject(result.message);
+      state.race = result.race;
+      break;
+    }
+    case 'REVEAL': {
+      if (state.phase !== 'race') return reject('Race results are not ready.');
+      state.field = finishRace(state.race);
+      const player = state.field.find(entry => entry.id === 'you');
+      const bonus = state.prediction === COURSE.target ? 3 : 0;
+      state.score = { race: player.retired?0:racePoints(player.place), prediction: bonus, total: (player.retired?0:racePoints(player.place)) + bonus, place: player.place };
+      state.phase = 'results';
+      break;
+    }
+    default: return reject('Unknown game action.');
+  }
+  return { ok: true, state };
+}
