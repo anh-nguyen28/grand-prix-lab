@@ -13,9 +13,9 @@ test('the story follows the round from first look to the real world', () => {
   for (let i = 0; i < 3; i++) state = act(state, { type: 'SCAN' });
   assert.equal(current(state), 'label');
   assert.equal(storyChapters(state)[0].autoOpen, false);
-  state = act(state, { type: 'PREDICT', terrain: 'sand' });
+  state = act(state, { type: 'PREDICT', terrain: 'abrasive' });
   assert.equal(current(state), 'train');
-  assert.match(storyChapters(state)[2].lines[0], /Sand/);
+  assert.match(storyChapters(state)[2].lines[0], /Abrasive/);
   state = act(state, { type: 'PRACTICE' });
   assert.match(storyChapters(state)[3].lines[0], /Run 1/);
   state = act(act(state, { type: 'QUALIFY' }), { type: 'FINISH_QUALIFY' });

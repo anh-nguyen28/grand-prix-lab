@@ -1,4 +1,6 @@
-import { BUDGET, COURSE, SEASON } from '../../shared/content.js';
+import { BUDGET } from '../../shared/content.js';
+import { TRACKS, DEFAULT_TRACK as COURSE } from '../../shared/tracks.js';
+const SEASON = TRACKS; // temporary shim, replaced by the track picker in Task 9
 import { escapeHtml as e, icon } from './icons.js';
 
 function frame(content, cls = '') { return `<div class="dialog-content ${cls}"><button class="dialog-close icon-button" data-action="close-dialog" aria-label="Close dialog">${icon('close')}</button>${content}</div>`; }

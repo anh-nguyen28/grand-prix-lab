@@ -43,31 +43,6 @@ export const PARTS = {
 for (const [id, stats] of Object.entries(PART_STATS)) PARTS[id].stats = stats;
 
 export const DEFAULT_BUILD = { wheels: 'road', power: 'electric', body: 'alloy', chassis: 'stiff', sensor: 'camera' };
-export const COURSE = {
-  id: 'dune', title: 'Dune Valley', number: '01', subtitle: 'A little evidence goes a long way.',
-  description: 'A sun-baked test course with one unknown stretch. Read the clues, set up your car, and find a way through.',
-  target: 'sand',
-  segments: [
-    { id: 'start', name: 'Start / finish straight', terrain: 'road', sector: 'straight', base: 8 },
-    { id: 'mystery', name: 'Mystery stretch', terrain: 'sand', sector: 'loose', base: 10 },
-    { id: 'climb', name: 'Technical sector', terrain: 'rock', sector: 'technical', base: 9 },
-  ],
-  clues: {
-    camera: ['Loose grains collect around the track markers.', 'The surface shifts under even a light wheel.', 'No plants, standing water, or solid pavement in this stretch.'],
-    thermal: ['Surface temperature: 38°C. Warm, but temperature alone is not enough.', 'Moisture: 2%. The surface is very dry.', 'The dry, loose particles heat much faster than the nearby rock.'],
-    lidar: ['The surface forms small ripples, a few centimetres high.', 'The ripples shift between scans: the surface is moving.', 'The grains are fine and evenly sized, like a dune.'],
-    radar: ['The top layer is loose and 18 cm deep.', 'The surface yields under pressure instead of cracking.', 'A granular layer sits above a firm rock base.'],
-  },
-};
-export const SEASON = [
-  { number: '01', title: 'Dune Valley', terrain: 'Sand · road · rock', lesson: 'Classification', color: '#e6a475', icon: 'sun', ready: true, summary: 'Use sensor clues to identify an unknown surface.' },
-  { number: '02', title: 'Mountain Pass', terrain: 'Climbs · tight turns', lesson: 'Training', color: '#9caaa0', icon: 'mountain', summary: 'Use feedback from each run to improve your build.' },
-  { number: '03', title: 'Frozen Lake', terrain: 'Ice · changing grip', lesson: 'Generalization', color: '#adc8cf', icon: 'snow', summary: 'Discover whether a specialist can handle an unfamiliar course.' },
-  { number: '04', title: 'Night City', terrain: 'Tarmac · low light', lesson: 'Data coverage', color: '#999ab0', icon: 'moon', summary: 'Investigate which conditions your practice data left out.' },
-  { number: '05', title: 'Jungle Rally', terrain: 'Mud · water · rock', lesson: 'Trusting AI', color: '#9eaf82', icon: 'leaf', summary: 'Weigh your engineer’s advice against the evidence.' },
-  { number: '06', title: 'Neural Ring', terrain: 'The grand final', lesson: 'Reward design', color: '#d4aa76', icon: 'flag', summary: 'Teach a driver what to aim for, then see what it actually does.' },
-];
-
 export const RACE_LAPS = 8;
 export const GRID_GAP = .12; // seconds of launch delay per grid slot
 export const RACE_PLAYBACK_MS = 150000;
@@ -99,4 +74,10 @@ export const DEMO_TEAMS = [
   rival('lumen', 'Sofia Russo', 'Lumen GP', '#b39ddb', 'offroad', 'solar', 'carbon'),
   rival('tide', 'Ravi Menon', 'Tidewater', '#81d4fa', 'road', 'electric', 'carbon'),
 ];
+// Per-track rival builds [wheels, power, body, chassis]; ids not listed keep their Dune Valley build.
+export const RIVAL_BUILDS = { dune: {}, mountain: {}, quarry: {} };
+export const rivalsFor = trackId => DEMO_TEAMS.map(team => {
+  const override = RIVAL_BUILDS[trackId]?.[team.id];
+  return override ? { ...team, build: { wheels: override[0], power: override[1], body: override[2], chassis: override[3], sensor: team.build.sensor } } : team;
+});
 export const driverCode = entry => entry.id === 'you' ? 'YOU' : entry.name.split(' ').at(-1).slice(0, 3).toUpperCase();
