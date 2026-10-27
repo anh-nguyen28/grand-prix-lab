@@ -6,12 +6,12 @@ _Independent player-workflow prototype · revised 26 October 2026_
 
 An original F1-inspired garage and spectator racing game. Roblox's robot-building assessment informs the visible assembly → test → improve loop. EA SPORTS F1 25 informs the team-owner perspective, identity and race presentation. F1 Manager informs the spectator viewpoint and visible mechanical stakes. The player engineers the car; the driver handles steering. Research, source links and engineering limits are documented in [RESEARCH.md](RESEARCH.md).
 
-This local prototype remains separate from the in-development `ai-grand-prix/`. Dune Valley is playable; the other five rounds are marked previews.
+This local prototype remains separate from the in-development `ai-grand-prix/`. Three tracks are playable: Dune Valley, Mountain Pass and Quarry Ring. Each has its own sections and conditions.
 
 ## Player workflow
 
 1. **Name your driver.** The garage identity panel and profile button open the name form. The same name appears above the car, in live timing and in the final classification. The player has a red YOU marker.
-2. **Follow the Field notes.** Rae, the race engineer, narrates the round as the story of teaching an AI. Chapter 1 introduces the metaphor (car = model, clues = data, practice = training, qualifying = validation, race = real world). Chapter 2 takes three sensor readings of the mystery stretch. Chapter 3 asks the player to label it for 3 bonus points. Its answer does not change car performance; skipping it leaves all race points available.
+2. **Follow the Field notes.** Rae, the race engineer, narrates the round as the story of teaching an AI. Chapter 1 introduces the metaphor (car = model, clues = data, practice = training, qualifying = validation, race = real world). Chapter 2 takes three sensor readings of the track's mystery section. Chapter 3 asks the player to label its condition for 3 bonus points. Its answer does not change car performance; skipping it leaves all race points available.
 3. **Assemble.** Choose a category on the physical parts shelf. Drag an illustrated component onto the car or its highlighted fitting point, or double-click it to fit it directly. Alternatively, tap/click a component and then its fitting point. Keyboard users can activate the same buttons. Escape cancels a picked-up part.
 4. **Understand the choice.** More details explains the benefit, compromise, visible consequence, relative ratings and price difference from the installed part. Fit to car is also available here. **How your car will race** beneath the car explains the actual benefits and elevated cornering, traction and cooling risks. It is feedback about the fitted parts, not another required decision.
 5. **Try a scenario if needed.** The engineering lab offers six controlled demonstrations. They use a separate race plan and do not consume tests, change the build, disclose mystery clues or affect points.
@@ -22,8 +22,8 @@ This local prototype remains separate from the in-development `ai-grand-prix/`. 
 
 ## Assembly rules
 
-- Four complete slots: tyres, power-and-cooling package, aero, sensor.
-- The budget is **75 credits**. The best part in every slot costs 82, so every build gives something up. A pricier sensor costs credits the car could use. Swaps refund the old part in full.
+- Five complete slots: tyres, power-and-cooling package, aero, chassis, sensor.
+- The budget is **90 credits**. The best part in every slot costs far more, so every build gives something up. A pricier sensor costs credits the car could use. Swaps refund the old part in full.
 - Dragging and tapping use the same validated `SET_PART` command. A visually selected part is not installed until dropped/fitted.
 - Incompatible fitting points do not install the part. The correct point is highlighted; a drop on the car chooses that slot.
 - The first scan locks the sensor. Sensors reveal evidence; they do not improve the driver's steering or repair mechanical issues.
@@ -33,20 +33,42 @@ This local prototype remains separate from the in-development `ai-grand-prix/`. 
 
 ## Garage layout
 
-The top row holds three boxes of the same height: the **parts shelf** (the whole box scrolls, so parts stay level with the car; its pinned header compacts to a one-line budget and smaller category tabs once the player scrolls), the **car**, and **car stats** (five specs, setup risks and the fitted parts with their total). **Field notes** span the full width below in three readable columns: Rae's story, what to do in this chapter, and a glossary mapping the game to AI that highlights the current idea. Chapter tabs let the player look back; the notes jump to the new chapter whenever the story advances. During a race the row becomes timing tower | track | live chat.
+The top row holds three boxes of the same height: the **parts shelf** (the whole box scrolls, so parts stay level with the car; its pinned header compacts to a one-line budget and smaller category tabs once the player scrolls), the **car**, and **car stats** (six specs, setup risks and the fitted parts with their total). **Field notes** span the full width below in three readable columns: Rae's story, what to do in this chapter, and a glossary mapping the game to AI that highlights the current idea. Chapter tabs let the player look back; the notes jump to the new chapter whenever the story advances. During a race the row becomes timing tower | track | live chat.
 
 ## Parts, budget and balance
 
 | Slot | Options (credits) |
 | --- | --- |
-| Tyres | Slick 10 · Medium 14 · Soft 16 · Grooved 18 · Sand paddles 22 · Endurance 24 |
+| Tyres | Slick 10 · Medium 14 · Soft 16 · Grooved 18 · Intermediate 18 · Hard 20 · Wet 20 · Sand paddles 22 · Endurance 24 |
 | Power | Efficiency 12 · Twin-battery hybrid 16 · Balanced hybrid 20 · Uncooled sprint 22 · Turbo 26 · Attack 28 |
 | Aero | Low-drag 8 · Balanced 16 · Ground-effect floor 20 · Active DRS 22 · High-downforce 26 |
+| Chassis | Stiff aluminium 8 · Soft-sprung steel 14 · Titanium adaptive 22 · Carbon monocoque 26 |
 | Sensor | Camera 4 · Thermal 8 · Lidar 10 · Radar 12 |
 
 Every part changes the 3D car: tyre width, stripe colour and tread (grooves, blocks, paddle fins); power-unit inlets, engine cover and a coloured signature (cooling grille, glowing battery packs, turbo snorkel, glowing exhausts, heat stripes); wing width, height, number of elements, front-wing flaps, DRS flap and ground-effect skirts and diffuser; and a distinct sensor pod on a mast. Both the 3D car (`src/scene/racecar.js`) and the shelf illustrations (`src/ui/part-art.js`) draw from one look table, `src/ui/part-looks.js`, so colours and shapes always match. Car stats animate when parts change: each bar slides from its old value to the new one, turns red below 40, yellow from 40 to 69 and green from 70, and shows a +/− badge for a few seconds. Fitting or picking up a part keeps the player's camera angle; the camera only resets when switching between the garage and circuit views. Incidents follow part traits (low-grip tyres, low-downforce aero, hot or sprint power), so a new part joins the incident system by declaring a trait.
 
-Each part declares its `pace` (seconds per lap gained or lost) on the straight, the loose mystery stretch and the technical corners, and tyres declare their wear. Practice telemetry, qualifying, the race and the spec sheet all read these same values, so what practice shows is what the race does. `tests/balance.test.js` holds the targets: at least four winning builds using different tyres, power units and aero; the best builds reach the podium without ERS but need ERS to win; 25–45% of affordable builds finish fifth or retire; the default car finishes fourth or worse; every part except the sprint package can reach the podium; the most expensive build does not automatically win. The named rivals are archetypes, and five more rivals run the newer parts so they appear on track: corner specialist (Luca), power gambler (Maya), grip builder (Alex), slick racer who ignored the sand clues (Sam) and the sprint retirement (Jordan).
+Each part declares its `pace` (seconds per lap gained or lost) on the straight and the technical corners, and tyres declare their wear. It also declares condition **stats** (0–100, `shared/part-stats.js`): tyres have dry grip, wet grip, warm-up, abrasion resistance and heat tolerance; power has output and cooling; aero has downforce, straight-line efficiency and stability; the chassis has stability and weight. Practice telemetry, qualifying, the race and the spec sheet read these same values. `tests/balance.test.js` runs every affordable build on every track: at least four winning builds using different tyres and power units, no build that wins all three tracks, 25–45% of builds that crash or retire, a starting car that does not score, every part except the sprint package reaching the top five on some track, and a priciest build that does not automatically win.
+
+## Tracks, conditions and sections
+
+There are three tracks (`shared/tracks.js`), each with 4–5 sections. A section has a condition (dry, abrasive, damp, cold, bumpy, hot or rain), the stats it demands with weights, and a baseline score (`required`). The car's score for a section is the weighted sum of those stats after the condition's wear for that lap (abrasive and hot sections wear grip and heat tolerance lap by lap). The **margin** is score minus baseline.
+
+| Margin | Result |
+| --- | --- |
+| 0 or more | Clean |
+| −10 to below 0 | Slower: 0.12 s per point of deficit |
+| −25 to below −10 | Incident (warning, moment, impact): 1.5–4 s |
+| below −25 | Crashable section: **crash**, 12–16 s lost, the car keeps racing. Hot section: escalates overheat → brake fade → fire (lap 5 or later) and retires. Otherwise a heavy 4 s incident |
+
+A section can crash a car once; after that the driver backs off to a plain incident. A car that keeps failing the same section is reported on the first failing lap and then every third lap; other laps lose half as much, quietly.
+
+| Track | Sections (condition) |
+| --- | --- |
+| Dune Valley, "Sun and grit" | Start straight (dry) · Gravel hairpin (abrasive, crashable) · Heat-soak back straight (hot, fire risk) · Dust chicane (abrasive) |
+| Mountain Pass, "Cold and wet" | Shaded climb (cold) · Switchback hairpins (damp, crashable) · Waterfall straight (rain, crashable) · Summit sweeper (dry) · Downhill braking zone (cold) |
+| Quarry Ring, "Rough and hot" | Kerb chicane (bumpy, crashable) · Washboard straight (bumpy, crashable) · Furnace hairpin (hot, fire risk) · Quarry sweeps (abrasive) · Closing straight (dry) |
+
+Each track has a hidden mystery section. The sensors read it (thermal: heat and moisture, lidar: shape, radar: structure, camera: what is visible) and the player labels its condition for 3 bonus points. The practice report shows a section forecast: the condition, the baseline, the car's score, the weakest stat and the best single-part swaps within budget.
 
 ## Race rules and pacing
 
@@ -58,15 +80,7 @@ Each part declares its `pace` (seconds per lap gained or lost) on the straight, 
 
 **Incidents.** Setup-exposed incidents are deterministic, attached to lap distance, and disclosed by the part details and “How your car will race”. Each inserts extra time into the affected portion of a car's timeline. Effects, line changes, live progress and results use that same timeline. They are not decorative explosions or independent random penalties.
 
-| Exposed setup | Race situation | Timing | Extra timeline cost |
-| --- | --- | --- | --- |
-| Slick tyres | Loose-surface wheelspin | Lap 1 / lap 6 | 1.2s / 1.8s |
-| Low-drag aero | Understeer | Lap 2 | 1.5s |
-| Low-drag aero + slick tyres | Raised-kerb contact | Lap 5 | 3.0s |
-| Attack power/cooling | Overheating | Lap 6 | 2.2s |
-| Attack package + low-drag aero | Brake fade | Lap 3 | 2.2s |
-| Uncooled sprint package | Overheating, then brake fade | Laps 2 / 3 | 3.2s / 2.8s |
-| Uncooled sprint package | Smoke, brake fire, retirement | Lap 5 | Race-ending failure |
+Incidents come from the section results above, not from part traits. The incident types are wheelspin, understeer, overheating, brake fade, kerb contact, aquaplaning, cold tyres, tyre shredding, parts shaken loose, crash and brake fire. A crash produces sparks and a time loss; the car keeps racing and finishes on its time. Only the brake fire retires a car.
 
 These timings and costs are authored game values, not predictions for a real F1 car. Other combinations avoid the corresponding incidents but can give up initial pace, acceleration or budget. A kerb strike produces sparks and a time loss; there is no persistent wing breakage or car-to-car collision solver yet.
 
@@ -97,7 +111,7 @@ These timings and costs are authored game values, not predictions for a real F1 
 During the race the right-hand column becomes a live chat (below the track on narrower screens).
 
 - **Race control** posts lights out, incidents (same-type incidents within two race seconds share one line, so a first-lap pile-up reads as one message), retirements, fastest laps, the final lap, and your position changes at most every five race seconds.
-- **Rivals** react to events that really happened to them: an overtake, their own incident (often naming the part, e.g. “Slicks on sand. Lesson learned”), a fastest lap. At most one rival line every three race seconds keeps it readable. When you post, the car ahead of you replies.
+- **Rivals** react to events that really happened to them: an overtake, their own incident (often naming the part, e.g. “Wrong tyres for that surface. Lesson learned”), a fastest lap. At most one rival line every three race seconds keeps it readable. When you post, the car ahead of you replies.
 - **You** can type (Enter to send) or tap a quick reaction (🔥 👏 😮 🏁 GG).
 - **Safety:** messages are trimmed, limited to 80 characters and one every 2 seconds, filtered against a starter word list, and always HTML-escaped. These rules live in `shared/chat.js`. In multiplayer, the server must apply them before broadcasting, and the host should be able to mute a player and clear the chat. Replace the starter word list with the organisation's own before a live event.
 
@@ -119,9 +133,11 @@ The model demonstrates tradeoffs; it does not solve tyre forces, fluid flow, sus
 
 ## Architecture and full-build path
 
-- `shared/content.js`: budget, parts, course, drivers and race constants.
-- `shared/engineering.js`: part explanations, ratings, behavior warnings and incident definitions.
-- `shared/track.js`: shared circuit geometry, named zones, braking pace weights and landmarks.
+- `shared/content.js`: budget, parts, drivers, per-track rival builds and race constants.
+- `shared/part-stats.js`: the condition stats of every part.
+- `shared/conditions.js`: conditions, the build profile, section score and outcome (clean, slow, incident, crash, fire).
+- `shared/tracks.js`: the three tracks: sections, conditions, baselines, circuit points, landmarks and mystery clues.
+- `shared/engineering.js`: part explanations, ratings, incident definitions, the incident plan per track and the section report.
 - `shared/game.js`: command validation, phase transitions and scoring.
 - `shared/simulation.js`: practice/qualifying setup evaluation.
 - `shared/race.js`: distance-based timelines, incident time costs, ERS, samples and classification. Pure functions with no DOM/network dependency.
@@ -138,4 +154,4 @@ Later add rooms, identities, team editing, host/projector views, reconnect recov
 
 ## Verification
 
-Domain tests cover budgets, locks, adjustment limits, deterministic race completion, boost constraints, all 36 non-sprint tyre/power/aero combinations, balance targets, the Field notes story progression, sprint-package retirement and its scoring, event location and time costs, setup remedies, and isolated demonstrations. Browser tests cover drag-and-drop, keyboard and mobile fitting, detailed inspection, driver identity, camera controls, pause, animated ranking positions, visible fire and retirement in a scored race, incident presentation and the complete natural-duration race. Screenshots are saved in `artifacts/`.
+Domain tests cover budgets, locks, adjustment limits, deterministic race completion, boost constraints, every non-sprint tyre/power/aero/chassis combination on the default track, the section scoring bands and conditions, track geometry and every track's sections, balance targets, the Field notes story progression, sprint-package retirement and its scoring, event location and time costs, setup remedies, and isolated demonstrations. Browser tests cover drag-and-drop, keyboard and mobile fitting, detailed inspection, driver identity, camera controls, pause, animated ranking positions, visible fire and retirement in a scored race, incident presentation and the complete natural-duration race. Screenshots are saved in `artifacts/`.

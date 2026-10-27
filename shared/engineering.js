@@ -91,12 +91,18 @@ export function planIncidents(build, track = DEFAULT_TRACK) {
 }
 export const buildIncidents = (build, track = DEFAULT_TRACK) => planIncidents(build, track).events;
 
-// One line per weak section, for "How your car will race" and the practice report.
+// One line per weak section, led by the worst thing that happens there (a fire beats a crash beats the rest).
+const SEVERITY = { fire: 3, crash: 2 };
 export function setupRisks(build, track = DEFAULT_TRACK) {
-  const seen = new Set();
-  return buildIncidents(build, track).filter(event => !seen.has(event.section) && seen.add(event.section)).map(event => {
+  const worst = new Map();
+  for (const event of buildIncidents(build, track)) {
+    const current = worst.get(event.section);
+    if (!current || (SEVERITY[event.type] ?? 1) > (SEVERITY[current.type] ?? 1)) worst.set(event.section, event);
+  }
+  return [...worst.values()].map(event => {
     const section = track.sections.find(item => item.id === event.section);
-    return { type: event.type, section: section.id, text: `${event.title} · ${section.name}`, detail: `${event.cause} ${event.remedy}` };
+    const detail = event.type === 'fire' ? `${event.cause} The car retires on lap ${event.lap}. ${event.remedy}` : `${event.cause} ${event.remedy}`;
+    return { type: event.type, section: section.id, text: `${event.title} · ${section.name}`, detail };
   });
 }
 

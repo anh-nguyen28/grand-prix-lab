@@ -6,7 +6,7 @@ import { escapeHtml as e, icon } from './icons.js';
 import { chatControl, chatIncident, chatRival, resetRaceChat, tickRaceChat } from './race-chat.js';
 
 // Short tags keep the 20-row tower readable.
-const TAG = { wheelspin: 'SPIN', understeer: 'WIDE', overheat: 'HOT', brakefade: 'BRAKES', contact: 'KERB', fire: 'FIRE' };
+const TAG = { wheelspin: 'SPIN', understeer: 'WIDE', overheat: 'HOT', brakefade: 'BRAKES', contact: 'KERB', fire: 'FIRE', crash: 'CRASH', aquaplane: 'AQUA', coldslide: 'COLD', tyreshred: 'WORN', bumpbreak: 'BUMPS' };
 
 // Broadcast state for one race. Reset before every race.
 let seen = new Set(), lightsOut = false, yourCall = null, lastPositions = new Map(), callouts = [], callout = null, announced = new Set(), bestLap = null, banner = null, impact = null, finalLap = false;

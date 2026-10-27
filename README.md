@@ -19,9 +19,10 @@ Use **Your driver** to set your name. Drag an illustrated part onto the car, dou
 
 - Original 3D open-wheel car with visible component changes and projected fitting points.
 - Visual parts shelf, pointer drag-and-drop, tap/keyboard fitting and detailed part inspection.
-- Four slots and 21 parts (6 tyres, 6 power units, 5 aero packages, 4 sensors), each with its own look on the 3D car and the shelf, a 75-credit budget that rules out the best of everything, two practice tests and qualifying.
-- Seven different builds can win, and about a third of affordable builds finish fifth or retire (see `tests/balance.test.js`).
-- **How your car will race** shows five specs (top speed, cornering, loose grip, cooling, tyre life) read from the same data that times the race, plus the setup's risks.
+- **Three tracks with different conditions** (Dune Valley: dry, abrasive, hot; Mountain Pass: cold, damp, rain; Quarry Ring: bumpy, hot, abrasive), each with 4–5 sections that demand different stats from the car. A section the car cannot handle costs time, then causes an incident, then (on crashable sections) a crash worth a big time loss. The car keeps racing; only the brake fire retires it.
+- Five slots and 28 parts (9 tyres, 6 power units, 5 aero packages, 4 chassis, 4 sensors), each with its own look on the 3D car and the shelf, a 90-credit budget that rules out the best of everything, two practice tests and qualifying.
+- Several different builds can win on each track, no build wins all three, and about a third of affordable builds crash or retire (see `tests/balance.test.js`).
+- **How your car will race** shows six specs (top speed, cornering, wet grip, cooling, tyre life, stability) read from the same stats that decide each section, plus the setup's risks. The practice report adds a **section forecast**: the condition, the baseline, your score, the weakest stat and the best single-part swaps within budget.
 - **Field notes** tell the round as a story: Rae, your race engineer, walks you through teaching your car like an AI, chapter by chapter (data → label → training → validation → real world). The lesson is named in the epilogue.
 - **A 20-car, eight-lap race in about 2½ minutes**, with a start-light sequence. The rivals are a realistic workshop field: two strong builds, a dense midfield, budget cars and two sprint-package gambles.
 - **TV director, Circuit and Follow me** cameras. The director queues every incident, cuts to it, and shows a second simultaneous incident in a picture-in-picture inset. Full nameplates for the cars that matter right now; code chips for the rest.
@@ -33,7 +34,7 @@ Use **Your driver** to set your name. Drag an illustrated part onto the car, dou
 - Local pause, 1×/2× playback and skip controls. The race pauses if the browser tab becomes hidden.
 - **Live chat** in the right-hand column during the race: race control (lights out, merged incident lines, fastest lap, final lap, your position changes), rival drivers reacting to real events (often naming the part that caused them), and your messages and one-tap reactions. 80 characters, one message every 2 seconds, a starter word filter and HTML escaping, defined in `shared/chat.js` so a server can enforce the same rules. Rivals are simulated; there is no real multiplayer chat yet.
 - **Learning loop:** practice reports forecast race risks with Watch and Fix it (highlighting the parts that remove each risk). Results show a podium, your incident reel with exact replays and fixes, three lessons from the field, and **Rebuild from this car** for the next attempt.
-- Desktop/mobile layouts and six-round season overview; rounds 2–6 remain design previews.
+- Desktop/mobile layouts that scale up on large screens, and a track picker.
 
 The 19 rivals are simulated. This prototype has no live multiplayer, persistence, host/projector connection or authentication. Refreshing resets the session. WebGL is needed for the visual car/race experience. The mixed-surface car rules are educational abstractions, not real F1 specifications. Scored races can include a disclosed setup-driven brake fire and retirement. Incidents are authored, repeatable scenarios rather than a full physics simulation. Contact currently means a kerb strike rather than car-to-car collision physics.
 

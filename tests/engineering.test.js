@@ -108,3 +108,11 @@ test('the spec sheet shows wet grip and stability from the same stats', () => {
   assert.deepEqual(labels, ['Top speed', 'Cornering', 'Wet grip', 'Cooling', 'Tyre life', 'Stability']);
   assert.ok(specSheet(build({ wheels: 'wet' })).find(item => item.id === 'wet').value > specSheet(build({ wheels: 'road' })).find(item => item.id === 'wet').value);
 });
+
+test('the setup risks lead with the worst outcome per section, so a fire is announced with its lap', () => {
+  const risks = setupRisks(build({ power: 'sprint' }), trackById('dune'));
+  const fire = risks.find(risk => risk.type === 'fire');
+  assert.ok(fire, 'the sprint package should list the fire');
+  assert.match(fire.detail, /retires on lap 5/);
+  assert.equal(risks.filter(risk => risk.section === fire.section).length, 1);
+});
