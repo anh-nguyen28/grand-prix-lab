@@ -1,4 +1,6 @@
-import { BUDGET, PARTS, SLOTS } from './content.js';
+import { BUDGET, PARTS, RACE_LAPS, SLOTS } from './content.js';
+import { buildProfile, sectionOutcome } from './conditions.js';
+import { DEFAULT_TRACK } from './tracks.js';
 import { buildStats, sectorPace } from './simulation.js';
 // Educational setup model. Ratings and event timings are game values, not F1 specifications.
 export const ENGINEERING = {
@@ -61,33 +63,44 @@ export function specSheet(build) {
     { id: 'endurance', label: 'Tyre life', value: stats.endurance },
   ];
 }
-// Incidents follow part traits, so new parts join the system by declaring a trait.
-const has = (build, trait) => SLOTS.some(slot => PARTS[build[slot]].traits?.includes(trait));
-export function setupRisks(build) {
-  const risks = [];
-  if (has(build, 'lowGrip')) risks.push({ type: 'wheelspin', text: 'Loose-surface grip', detail: 'Expect a slide in the mystery sector and more wear late in the stint.' });
-  if (has(build, 'lowDownforce')) risks.push({ type: 'understeer', text: 'Runs wide in corners', detail: has(build, 'lowGrip') ? 'Low downforce on low-grip tyres: understeer, then a kerb strike.' : 'Low downforce exposes the car to understeer in the corners.' });
-  if (has(build, 'sprint')) risks.push({type:'fire',text:'Cooling cannot last this race',detail:'The sprint package overheats, develops a brake fire and retires on lap 5. Choose balanced cooling to finish.'});
-  if (has(build, 'hot')) risks.push({ type: 'overheat', text: 'Limited cooling margin', detail: 'The attack package loses power once, late in the long stint.' });
-  if (has(build, 'hot') && has(build, 'lowDownforce')) risks.push({ type: 'brakefade', text: 'Braking heat', detail: 'High straight-line pace plus compact cooling exposes brake fade.' });
-  return risks;
-}
+const round1 = value => Math.round(value * 10) / 10;
 
-// Events are attached to lap distance. Boosting changes when a car reaches them,
-// but never moves a corner incident onto an unrelated section of track.
-export function buildIncidents(build, track) {
-  const events = [];
-  const add = (type, lap, loss) => events.push({ ...INCIDENTS[type], type, lap, loss: loss ?? INCIDENTS[type].loss, distance: lap - 1 + INCIDENTS[type].phase });
-  if (has(build, 'lowGrip')) { add('wheelspin', 1, 1.2); add('wheelspin', 6, 1.8); }
-  if (has(build, 'lowDownforce')) { add('understeer', 2, 1.5); if (has(build, 'lowGrip')) add('contact', 5, 3); }
-  if (has(build, 'sprint')) { add('overheat',2); add('brakefade',3); add('fire',5,9); }
-  if (has(build, 'hot')) add('overheat', 6, 2.2);
-  if (has(build, 'hot') && has(build, 'lowDownforce')) add('brakefade', 3, 2.2);
-  return events.sort((a, b) => a.distance - b.distance);
+// Events attach to lap distance inside the failing section. A car that keeps failing the same section is
+// reported on the first failing lap and then every third lap; the other laps cost half as much, quietly.
+// A section can crash a car once; after that the driver backs off to a plain incident.
+export function planIncidents(build, track = DEFAULT_TRACK) {
+  const profile = buildProfile(build), events = [], quiet = {}, firstFail = {}, crashed = new Set();
+  let retired = false;
+  for (let lap = 1; lap <= RACE_LAPS && !retired; lap++) {
+    for (const section of track.sections) {
+      if (retired) break;
+      let outcome = sectionOutcome(profile, section, lap);
+      if (outcome.kind === 'clean') continue;
+      const key = `${lap}:${section.id}`;
+      if (outcome.kind === 'slow') { quiet[key] = outcome.loss; continue; }
+      if (outcome.kind === 'crash' && crashed.has(section.id)) outcome = { ...outcome, kind: 'incident', type: section.incident, loss: 4 };
+      if (outcome.kind === 'crash') crashed.add(section.id);
+      firstFail[section.id] ??= lap;
+      if (outcome.kind !== 'fire' && (lap - firstFail[section.id]) % 3 !== 0) { quiet[key] = round1(outcome.loss * .5); continue; }
+      events.push({ ...INCIDENTS[outcome.type], type: outcome.type, lap, loss: outcome.loss, warning: section.warning, section: section.id, distance: lap - 1 + section.from + .02 });
+      if (outcome.kind === 'fire') retired = true;
+    }
+  }
+  return { events: events.sort((a, b) => a.distance - b.distance), quiet };
+}
+export const buildIncidents = (build, track = DEFAULT_TRACK) => planIncidents(build, track).events;
+
+// One line per weak section, for "How your car will race" and the practice report.
+export function setupRisks(build, track = DEFAULT_TRACK) {
+  const seen = new Set();
+  return buildIncidents(build, track).filter(event => !seen.has(event.section) && seen.add(event.section)).map(event => {
+    const section = track.sections.find(item => item.id === event.section);
+    return { type: event.type, section: section.id, text: `${event.title} · ${section.name}`, detail: `${event.cause} ${event.remedy}` };
+  });
 }
 
 // Every incident this setup will meet in the race, grouped so practice can warn about it.
-export function raceRiskForecast(build, track) {
+export function raceRiskForecast(build, track = DEFAULT_TRACK) {
   const groups = new Map();
   for (const event of buildIncidents(build, track)) {
     const group = groups.get(event.type) || { type: event.type, title: event.title, laps: [], loss: 0, retirement: false };
@@ -98,7 +111,7 @@ export function raceRiskForecast(build, track) {
 }
 
 // Single-part swaps that remove an incident type and still fit the budget.
-export function incidentFixes(build, type, track) {
+export function incidentFixes(build, type, track = DEFAULT_TRACK) {
   return SLOTS.flatMap(slot => Object.values(PARTS).filter(part => part.slot === slot && part.id !== build[slot]).filter(part => {
     const next = { ...build, [slot]: part.id };
     return buildStats(next).cost <= BUDGET && !buildIncidents(next, track).some(event => event.type === type);

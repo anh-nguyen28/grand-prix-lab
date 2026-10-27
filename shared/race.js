@@ -1,5 +1,5 @@
 import { BOOST_CHARGES, BOOST_COOLDOWN, BOOST_GAIN, BOOST_SECONDS, GRID_GAP, PARTS, RACE_LAPS } from './content.js';
-import { buildIncidents, engineeringStats, INCIDENTS } from './engineering.js';
+import { engineeringStats, INCIDENTS, planIncidents } from './engineering.js';
 import { sectorPace, simulate } from './simulation.js';
 import { DEFAULT_TRACK, trackById, trackSegments, trackZone } from './tracks.js';
 
@@ -50,12 +50,12 @@ export function createRace(entries, qualifyingBuild, track = DEFAULT_TRACK) {
   const grid = entries.map(entry => ({ ...entry, qualifying: simulate(entry.id === 'you' ? qualifyingBuild : entry.build, track) }))
     .sort((a, b) => a.qualifying.time - b.qualifying.time || a.id.localeCompare(b.id));
   const field = grid.map((entry, gridIndex) => {
-    const tyre = PARTS[entry.build.wheels];
+    const tyre = PARTS[entry.build.wheels], incidentPlan = planIncidents(entry.build, track);
     const segments = Array.from({ length: RACE_LAPS }, (_, lap) => sections.map((segment, index) => ({
       id: segment.id, name: segment.name, terrain: segment.condition, lap: lap + 1, sector: index + 1,
-      time: round(segment.base + sectorPace(entry.build, segment.sector) * segment.share + lap * tyre.wear * 3 / sections.length + noise(entry.id, lap, segment.id) * .18 + (lap === 0 && index === 0 ? tyre.launch ?? 0 : 0)),
+      time: round(segment.base + sectorPace(entry.build, segment.sector) * segment.share + lap * tyre.wear * 3 / sections.length + noise(entry.id, lap, segment.id) * .18 + (lap === 0 && index === 0 ? tyre.launch ?? 0 : 0) + (incidentPlan.quiet[`${lap + 1}:${segment.id}`] ?? 0)),
     }))).flat();
-    const plan = buildTimeline(segments, buildIncidents(entry.build, track), sections);
+    const plan = buildTimeline(segments, incidentPlan.events, sections);
     const retirement = plan.events.find(event => event.type === 'fire') || null;
     const incidents = plan.events.filter(event => !retirement || event.start <= retirement.end);
     const lapEnds = Array.from({ length: RACE_LAPS + 1 }, (_, lap) => lap === 0 ? 0 : virtualTimeAtDistance({ timeline: plan.timeline }, lap));
