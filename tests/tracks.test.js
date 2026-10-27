@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 import { CONDITIONS } from '../shared/conditions.js';
 import { INCIDENTS } from '../shared/engineering.js';
 import { DEFAULT_TRACK_ID, TRACKS, trackById, trackSegments, trackZone } from '../shared/tracks.js';
@@ -57,4 +58,23 @@ test('trackById falls back to the default track and trackZone wraps laps', () =>
   assert.equal(trackZone(track, 0.01).id, track.sections[0].id);
   assert.equal(trackZone(track, 3.01).id, track.sections[0].id);
   assert.equal(trackZone(track, -0.01).id, track.sections.at(-1).id);
+});
+
+// The pit building and stands are fixed props placed around Dune Valley's footprint, and barriers sit 1.8 units
+// either side of the line, so every circuit must stay inside that footprint and never pinch back on itself.
+test('every circuit fits the shared footprint and never pinches', () => {
+  for (const track of TRACKS) {
+    const curve = new THREE.CatmullRomCurve3(track.points.map(point => new THREE.Vector3(...point)), true, 'catmullrom', .32);
+    const samples = curve.getSpacedPoints(300).slice(0, 300), length = curve.getLength();
+    for (const point of samples) {
+      assert.ok(point.x >= -19.5 && point.x <= 18.5, `${track.id}: x ${point.x.toFixed(1)}`);
+      assert.ok(point.z >= -12 && point.z <= 9.6, `${track.id}: z ${point.z.toFixed(1)}`);
+    }
+    let closest = Infinity;
+    for (let i = 0; i < 300; i++) for (let j = i + 1; j < 300; j++) {
+      if (Math.min(j - i, 300 - (j - i)) * length / 300 < 8) continue;
+      closest = Math.min(closest, Math.hypot(samples[i].x - samples[j].x, samples[i].z - samples[j].z));
+    }
+    assert.ok(closest >= 4.8, `${track.id}: the track comes within ${closest.toFixed(1)} of itself`);
+  }
 });

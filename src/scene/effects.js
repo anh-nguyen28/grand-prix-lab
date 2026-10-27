@@ -30,12 +30,12 @@ export function makeCarEffects(car) {
     }
     group.visible=!!incident;if(!incident)return;
     const type=incident.effect,t=incident.progress;
-    smoke.visible=['dust','steam','brake','fire','slide'].includes(type);
-    smoke.material.color.set(type==='dust'?'#cbb18b':type==='fire'?'#626776':'#e2e9ed');
+    smoke.visible=['dust','steam','brake','fire','slide','splash'].includes(type);
+    smoke.material.color.set(type==='dust'?'#cbb18b':type==='fire'?'#626776':type==='splash'?'#9fd0ff':'#e2e9ed');
     smoke.material.opacity=type==='fire'?.85:.65;
     sparks.visible=type==='sparks';flame.visible=type==='fire'&&t>.25;brakeGlow.visible=type==='brake'||type==='fire';
     const clock=reducedMotion?t*4:elapsed;
-    for(let i=0;i<18;i++){const age=(clock*.5+i/18)%1,off=i*3;positions[off]=-1.4-age*4;positions[off+1]=.45+age*(type==='dust'?1.2:5);positions[off+2]=Math.sin(i*12.3)*(.25+age*1.3);}
+    for(let i=0;i<18;i++){const age=(clock*.5+i/18)%1,off=i*3;positions[off]=-1.4-age*4;positions[off+1]=.45+age*(type==='dust'?1.2:type==='splash'?3:5);positions[off+2]=Math.sin(i*12.3)*(.25+age*1.3);}
     geometry.attributes.position.needsUpdate=true;
     for(let i=0;i<12;i++){const age=(clock+i/12)%1,off=i*3;sparkPositions[off]=2-age*4;sparkPositions[off+1]=.2+Math.sin(age*Math.PI)*.7;sparkPositions[off+2]=(i%2?1:-1)*age*1.6;}
     sparkGeometry.attributes.position.needsUpdate=true;

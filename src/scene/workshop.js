@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { box, cylinder, disposeGroup, material, batchStaticGeometry } from './geometry.js';
 import { makeRaceCar } from './racecar.js';
 import { makeCircuit } from './circuit.js';
+import { trackById } from '../../shared/tracks.js';
 import { sampleRace } from '../../shared/race.js';
 import { PARTS, SLOT_LABELS, driverCode } from '../../shared/content.js';
 import { makeCarEffects } from './effects.js';
@@ -31,15 +32,25 @@ export function createWorkshop(container) {
   box(garage,[.8,.85,1.5],[4.5,.15,-2.6],material('#d43640'),.05);
   for(let i=0;i<4;i++)box(garage,[.025,.025,1.25],[4.91,-.1+i*.17,-2.6],material('#929eab'),.005);
   batchStaticGeometry(garage);
-  const circuit = makeCircuit(); circuit.group.visible = false; scene.add(circuit.group);
-  const runners = new THREE.Group(); circuit.group.add(runners);
+  // The circuit is rebuilt when the player picks another track. Cars live in `runners`, which moves with it.
+  let circuit = null, trackId = null, landmarkLabels = [];
+  const runners = new THREE.Group();
   const labelLayer = document.createElement('div'); labelLayer.className = 'car-name-layer'; labelLayer.setAttribute('aria-label','Driver names above race cars'); container.append(labelLayer);
   const connectorLayer = document.createElementNS('http://www.w3.org/2000/svg','svg'); connectorLayer.classList.add('name-connectors'); labelLayer.append(connectorLayer);
   const fittings=document.createElement('div');fittings.className='assembly-targets';container.append(fittings);
   const landmarkLayer=document.createElement('div');landmarkLayer.className='track-landmarks';container.append(landmarkLayer);
-  const landmarkLabels=circuit.landmarks.map(mark=>{const element=document.createElement('span');element.innerHTML=`<b>${mark.name}</b><small>${mark.label}</small>`;landmarkLayer.append(element);return {...mark,element};});
   const map=document.createElement('div');map.className='circuit-map';container.append(map);
-  map.innerHTML=`<span>CIRCUIT POSITION</span><svg viewBox="-23 -17 46 34" aria-label="Circuit map"><path d="M${circuit.mapPoints.map(point=>point.join(',')).join('L')}Z"/><g class="map-pins"></g><g class="map-cars"></g></svg>`;
+  map.innerHTML=`<span>CIRCUIT POSITION</span><svg viewBox="-23 -17 46 34" aria-label="Circuit map"><path d=""/><g class="map-pins"></g><g class="map-cars"></g></svg>`;
+  function setTrack(id){
+    const track=trackById(id);if(circuit&&trackId===track.id)return;
+    const visible=circuit?.group.visible??false;
+    if(circuit){scene.remove(circuit.group);circuit.group.traverse(node=>{node.geometry?.dispose();});}
+    trackId=track.id;circuit=makeCircuit(track);circuit.group.visible=visible;scene.add(circuit.group);circuit.group.add(runners);
+    landmarkLayer.replaceChildren();
+    landmarkLabels=circuit.landmarks.map(mark=>{const element=document.createElement('span');element.innerHTML=`<b>${mark.name}</b><small>${mark.label}</small>`;landmarkLayer.append(element);return {...mark,element};});
+    map.querySelector('path').setAttribute('d',`M${circuit.mapPoints.map(point=>point.join(',')).join('L')}Z`);
+  }
+  setTrack('dune');
   const pipFrame=document.createElement('div');pipFrame.className='pip-frame';pipFrame.hidden=true;container.append(pipFrame);
   const pipCamera=new THREE.PerspectiveCamera(36,1.6,.1,350);
   const fittingLines=document.createElementNS('http://www.w3.org/2000/svg','svg');fittingLines.classList.add('fitting-lines');fittings.append(fittingLines);
@@ -250,5 +261,5 @@ export function createWorkshop(container) {
     controls.update();updateCamera();camera.updateMatrixWorld();layoutFittings();layoutLandmarks();layoutLabels();renderer.render(scene,camera);renderPip();container.dataset.ready='true';
   }
   frame=requestAnimationFrame(tick);
-  return {setBuild,setView,setAssembly,setArmedPart,setPlayback,setRaceCamera,resetCamera,animateRun,finishAnimation,setKnowledge:circuit.setKnowledge,dispose(){disposed=true;cancelAnimationFrame(frame);observer.disconnect();controls.dispose();disposeGroup(scene);renderer.dispose();labelLayer.remove();fittings.remove();landmarkLayer.remove();map.remove();pipFrame.remove();}};
+  return {setBuild,setView,setAssembly,setArmedPart,setPlayback,setRaceCamera,resetCamera,animateRun,finishAnimation,setKnowledge:revealed=>circuit.setKnowledge(revealed),setTrack,dispose(){disposed=true;cancelAnimationFrame(frame);observer.disconnect();controls.dispose();disposeGroup(scene);renderer.dispose();labelLayer.remove();fittings.remove();landmarkLayer.remove();map.remove();pipFrame.remove();}};
 }

@@ -1,5 +1,6 @@
 import { BOOST_COOLDOWN, RACE_LAPS, driverCode } from '../../shared/content.js';
 import { fastestLap, findBattles, incidentImpact } from '../../shared/race.js';
+import { CONDITIONS } from '../../shared/conditions.js';
 import { trackById, trackZone } from '../../shared/tracks.js';
 import { escapeHtml as e, icon } from './icons.js';
 import { chatControl, chatIncident, chatRival, resetRaceChat, tickRaceChat } from './race-chat.js';
@@ -139,7 +140,7 @@ export function updateRaceBroadcast(race, broadcast) {
   const uses = race.boosts.filter(boost => boost.id === 'you'), cooldown = uses.length ? Math.max(0, BOOST_COOLDOWN - (elapsed - uses.at(-1).at)) : 0;
   const ersReady = started && !paused && race.charges > 0 && cooldown === 0 && !you.finished && !you.retired;
   const attack = ersReady && gapAhead !== null && gapAhead < ATTACK_GAP;
-  const zone = document.querySelector('#race-zone'); if (zone) zone.textContent = you.retired ? 'RETIRED' : `YOU · P${you.position} · LAP ${you.lap} · ${you.zone.name}`;
+  const zone = document.querySelector('#race-zone'); if (zone) zone.textContent = you.retired ? 'RETIRED' : `YOU · P${you.position} · LAP ${you.lap} · ${you.zone.name} · ${CONDITIONS[you.zone.condition].label.toUpperCase()}`;
   const gaps = document.querySelector('#race-advantage');
   if (gaps) {
     gaps.textContent = you.retired ? 'Cooling failure ended your race' : you.finished ? 'Chequered flag' : `${ahead ? `${driverCode(ahead)} ahead ${gapAhead.toFixed(1)}s` : 'Leading the race'}${behind ? ` · ${driverCode(behind)} behind ${gapBehind.toFixed(1)}s` : ''}${attack ? ' · ATTACK: deploy ERS' : ''}`;

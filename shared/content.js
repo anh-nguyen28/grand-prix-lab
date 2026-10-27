@@ -75,7 +75,6 @@ export const DEMO_TEAMS = [
   rival('tide', 'Ravi Menon', 'Tidewater', '#81d4fa', 'road', 'electric', 'carbon'),
 ];
 // Per-track rival builds [wheels, power, body, chassis]; ids not listed keep their Dune Valley build.
-// Per-track rival builds [wheels, power, body, chassis]; ids not listed keep their Dune Valley build.
 export const RIVAL_BUILDS = {
   dune: {
     moss: ['hard', 'solar', 'alloy', 'titanium'], sun: ['tracks', 'solar', 'carbon', 'stiff'], apex: ['hard', 'turbo', 'alloy', 'sprung'],

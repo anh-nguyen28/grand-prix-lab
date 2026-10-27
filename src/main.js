@@ -48,7 +48,7 @@ function closeDialog() { dialog.close(); }
 function setView(view) {
   ui.view = view; scene.setView(view);
   document.querySelectorAll('[data-action="view"]').forEach(button => { const selected = button.dataset.view === view; button.classList.toggle('selected', selected); button.setAttribute('aria-pressed', selected); button.disabled = ui.busy; });
-  document.querySelector('#scene-hint').innerHTML = `${icon('eye')} ${view === 'rover' ? 'DRAG TO LOOK AROUND' : 'DUNE VALLEY CIRCUIT / BROADCAST VIEW'}`;
+  document.querySelector('#scene-hint').innerHTML = `${icon('eye')} ${view === 'rover' ? 'DRAG TO LOOK AROUND' : `${trackById(session.getSnapshot().trackId).title.toUpperCase()} CIRCUIT / BROADCAST VIEW`}`;
 }
 function render() {
   const state = session.getSnapshot();
@@ -68,6 +68,7 @@ function render() {
   document.querySelector('#steps').innerHTML = renderSteps(state);
   document.querySelector('#profile-label').textContent = state.profile.name;
   const track = trackById(state.trackId);
+  scene.setTrack(state.trackId);
   document.querySelector('#round-title').textContent = track.title;
   document.querySelector('#round-number').textContent = `GRAND PRIX ${track.number} / 0${TRACKS.length}`;
   document.querySelector('#round-icon').innerHTML = icon(track.icon);

@@ -37,7 +37,7 @@ export const TRACKS = [
     id: 'mountain', number: '02', title: 'Mountain Pass', subtitle: 'Cold and wet.', lesson: 'Training', color: '#9caaa0', icon: 'mountain',
     description: 'A shaded climb, wet switchbacks and a waterfall straight. Warm-up and wet grip decide the day.',
     lapBase: 27,
-    points: [[-16, .38, 8], [-6, .38, 10], [6, .38, 9], [15, .38, 6], [18, .38, 0], [14, .38, -4], [8, .38, -3], [4, .38, -7], [8, .38, -11], [0, .38, -12], [-7, .38, -9], [-9, .38, -4], [-14, .38, -3], [-19, .38, -6], [-20, .38, 0], [-19, .38, 5]],
+    points: [[-14, .38, 9], [-5, .38, 9], [7, .38, 9], [14, .38, 8], [18, .38, 3], [13, .38, -1], [16, .38, -6], [9, .38, -10], [3, .38, -6], [-2, .38, -11], [-9, .38, -8], [-8, .38, -3], [-14, .38, -1], [-18, .38, 3]],
     sections: [
       section('climb', 'Shaded climb', 'COLD TYRES', 'sweep', 0, .20, { condition: 'cold', demand: { warmup: .5, downforce: .5 }, required: 50, incident: 'coldslide',
         warning: 'Shaded and cold. The tyres will be slow to warm up.', problem: 'Cold tyres gave little grip on the climb.', suggestion: 'Soft tyres warm up fast. Downforce adds grip.' }),
@@ -65,7 +65,7 @@ export const TRACKS = [
     id: 'quarry', number: '03', title: 'Quarry Ring', subtitle: 'Rough and hot.', lesson: 'Generalization', color: '#d4aa76', icon: 'flag',
     description: 'Kerbs, washboard ground and a furnace hairpin. Ride quality and cooling decide the day.',
     lapBase: 27,
-    points: [[-15, .38, 9], [-4, .38, 10], [8, .38, 10], [16, .38, 7], [18, .38, 1], [13, .38, -3], [12, .38, -8], [6, .38, -11], [-2, .38, -9], [-4, .38, -4], [-9, .38, -2], [-14, .38, -5], [-19, .38, -4], [-20, .38, 1], [-19, .38, 6]],
+    points: [[-14, .38, 9], [-5, .38, 9], [7, .38, 9], [14, .38, 8], [18, .38, 2], [13, .38, -3], [12, .38, -8], [6, .38, -11], [-2, .38, -9], [-4, .38, -4], [-9, .38, -2], [-14, .38, -5], [-18, .38, -4], [-18, .38, 2]],
     sections: [
       section('kerbs', 'Kerb chicane', 'RIDE THE KERBS', 'corner', 0, .18, { condition: 'bumpy', demand: { stability: .6, dryGrip: .4 }, required: 66, incident: 'contact', crash: true,
         warning: 'Raised kerbs ahead. The car will be shaken.', problem: 'The kerbs unsettled the car.', suggestion: 'Adaptive or soft suspension and a strong chassis.' }),
