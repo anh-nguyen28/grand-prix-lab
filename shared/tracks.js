@@ -17,7 +17,7 @@ export const TRACKS = [
         warning: 'Long straight. Top speed matters.', problem: 'Not enough top speed for the straight.', suggestion: 'Low-drag aero or a stronger power unit is quicker here.' }),
       section('hairpin', 'T1 · Gravel hairpin', 'BRAKE → TURN', 'corner', .28, .42, { condition: 'abrasive', demand: { dryGrip: .4, downforce: .3, abrasion: .3 }, required: 66, incident: 'tyreshred', crash: true,
         warning: 'Gritty gravel ahead. Soft tyres will shred.', problem: 'Grit chewed up the tyres in the hairpin.', suggestion: 'Hard or endurance tyres resist grit. Add downforce.' }),
-      section('heatsoak', 'Heat-soak back straight', 'HEAT BUILD', 'straight', .42, .70, { condition: 'hot', demand: { cooling: .6, heatTol: .4 }, required: 40, incident: 'overheat', escalates: true,
+      section('heatsoak', 'Heat-soak back straight', 'HEAT BUILD', 'straight', .42, .70, { condition: 'hot', demand: { cooling: .6, heatTol: .4 }, required: 45, incident: 'overheat', escalates: true,
         warning: 'The back straight bakes the car. Watch the temperatures.', problem: 'The power unit and brakes ran too hot.', suggestion: 'A cooler power unit and hard tyres cope with the heat.' }),
       section('chicane', 'T2–4 · Dust chicane', 'CHANGE DIRECTION', 'corner', .70, 1, { condition: 'abrasive', demand: { dryGrip: .4, downforce: .3, abrasion: .3 }, required: 64, incident: 'understeer',
         warning: 'Dust and grit through the chicane.', problem: 'The tyres could not hold the line through the grit.', suggestion: 'Downforce and a tough tyre keep the car on line.' }),
