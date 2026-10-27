@@ -8,6 +8,7 @@ test('a full race on Mountain Pass classifies everyone, shows crashes and aquapl
   await expect(page.locator('#round-title')).toHaveText('Mountain Pass');
   await page.getByRole('button', { name: /Test car/ }).click();
   await page.getByRole('button', { name: 'Continue without bonus' }).click();
+  await page.getByRole('button', { name: 'Skip animation' }).click();
   await expect(page.locator('.section-forecast')).toBeVisible({ timeout: 30000 });
   await expect(page.locator('.track-chip')).toHaveCount(5);
   await page.getByRole('button', { name: 'Ready to qualify' }).click();

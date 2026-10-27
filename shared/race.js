@@ -1,5 +1,5 @@
 import { BOOST_CHARGES, BOOST_COOLDOWN, BOOST_GAIN, BOOST_SECONDS, GRID_GAP, PARTS, RACE_LAPS } from './content.js';
-import { engineeringStats, INCIDENTS, planIncidents } from './engineering.js';
+import { engineeringStats, INCIDENTS, planIncidents, previewIncidents } from './engineering.js';
 import { sectorPace, simulate } from './simulation.js';
 import { DEFAULT_TRACK, trackById, trackSegments, trackZone } from './tracks.js';
 
@@ -70,6 +70,20 @@ export function createRace(entries, qualifyingBuild, track = DEFAULT_TRACK) {
 }
 
 const DEMO_SECTIONS = [{ from: 0, to: 1 / 3 }, { from: 1 / 3, to: 2 / 3 }, { from: 2 / 3, to: 1 }];
+// The practice run: the car alone for one lap, with the worst problem of every weak section shown in order.
+// Same pace model and timeline as the race, so the lap is exactly reproducible for "Watch run again".
+export function createPracticeLap(entry, track = DEFAULT_TRACK) {
+  const sections = trackSegments(track);
+  const segments = sections.map((segment, index) => ({
+    id: segment.id, name: segment.name, terrain: segment.condition, lap: 1, sector: index + 1,
+    time: round(segment.base + sectorPace(entry.build, segment.sector) * segment.share),
+  }));
+  const plan = buildTimeline(segments, previewIncidents(entry.build, track), sections);
+  const car = { ...entry, grid: 1, startDelay: 0, timeline: plan.timeline, incidents: plan.events, retirement: null, lapTimes: [plan.time],
+    result: { segments, time: plan.time, incidentLoss: round(plan.events.reduce((sum, event) => sum + event.loss, 0)), build: { ...entry.build } } };
+  return { laps: 1, trackId: track.id, field: [car], boosts: [], maxTime: plan.time, charges: 0, practice: true };
+}
+
 export function createIncidentDemo(build, type, name, trackId = 'dune') {
   const incident = INCIDENTS[type];
   if (!incident) throw new Error('Unknown incident demonstration');

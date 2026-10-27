@@ -25,12 +25,11 @@ test('physical assembly, part details, safe alternatives, and an isolated brake-
   await page.getByRole('button',{name:'Preview failures'}).click();
   await page.getByRole('button',{name:/Blocked brake duct/}).click();
   await expect(page.getByRole('dialog')).toContainText('uncooled sprint package');
-  await page.getByRole('button',{name:'Watch the 18-second demo'}).click();
-  await expect(page.locator('#demo-stage')).toContainText('BRAKE FIRE',{timeout:30000});
-  await page.getByRole('button',{name:'Pause race'}).click();
-  await expect(page.getByRole('button',{name:'Resume race'})).toBeVisible();
+  // The problem explanation has no demo video: problems are watched on the Test car lap.
+  await expect(page.getByRole('button',{name:/Watch the 18-second demo/})).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toContainText('Test car');
   await page.screenshot({path:'artifacts/incident-fire.png',fullPage:true});
-  await page.getByRole('button',{name:'Skip animation'}).click();
+  await page.keyboard.press('Escape');
   await expect(page.getByRole('heading',{name:'Your race starts in the garage.'})).toBeVisible();
   await expect(page.locator('#action-bar')).toContainText('2 practice runs left');
   await expect(page.locator('[data-action="fit-target"][data-fit-slot="power"]')).toContainText('Attack power unit');

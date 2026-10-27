@@ -31,6 +31,10 @@ Section outcome bands (clean, slow, incident, crash, fire) are defined in `condi
 
 Key design constraints (see `DESIGN.md` for the full workflow, rules and incident table; `RESEARCH.md` for rationale):
 - Race outcomes, incidents (warning → moment → impact) and rival behaviour are deterministic and repeatable, not physics. A crash is a large time loss and the car keeps racing; only the brake fire retires a car. Race UI and cameras read from the same data that times the race.
-- Local playback controls (pause, 1×/2×, skip) are prototype-only; the full build must move timing/authority server-side.
+- Local playback controls (pause, 0.5×–2×, skip) are prototype-only; the full build must move timing/authority server-side.
 - The 19 rivals and chat are simulated; no persistence or auth, refresh resets session.
 - Incident demos (`engineering.js`) are isolated and must not affect the player's build, tests or score.
+
+## Git
+
+Never commit (or push) on your own. Leave changes in the working tree; the user commits.

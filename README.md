@@ -24,7 +24,7 @@ Use **Your driver** to set your name. Drag an illustrated part onto the car, dou
 - Several different builds can win on each track, no build wins all three, and about a third of affordable builds crash or retire (see `tests/balance.test.js`).
 - **How your car will race** shows six specs (top speed, cornering, wet grip, cooling, tyre life, stability) read from the same stats that decide each section, plus the setup's risks. The practice report adds a **section forecast**: the condition, the baseline, your score, the weakest stat and the best single-part swaps within budget.
 - **Field notes** tell the round as a story: Rae, your race engineer, walks you through teaching your car like an AI, chapter by chapter (data → label → training → validation → real world). The lesson is named in the epilogue.
-- **A 20-car, eight-lap race in about 2½ minutes**, with a start-light sequence. The rivals are a realistic workshop field: two strong builds, a dense midfield, budget cars and two sprint-package gambles.
+- **A 20-car, eight-lap race in about 3 minutes**, with a start-light sequence. The rivals are a realistic workshop field: two strong builds, a dense midfield, budget cars and two sprint-package gambles.
 - **TV director, Circuit and Follow me** cameras. The director queues every incident, cuts to it, and shows a second simultaneous incident in a picture-in-picture inset. Full nameplates for the cars that matter right now; code chips for the rest.
 - Larger circuit with named corners, braking/acceleration zones, direction arrows and a live minimap.
 - A compact 20-row timing tower with live gaps, warning and incident tags; F1-style callouts for overtakes, battles, fastest lap and the final lap; a gap readout and an ERS attack window within half a second of the car ahead.
@@ -33,6 +33,7 @@ Use **Your driver** to set your name. Drag an illustrated part onto the car, dou
 - Six separate 18-second incident demonstrations, including a deliberate blocked-duct brake fire. These do not affect the player's build, tests or score.
 - Local pause, 1×/2× playback and skip controls. The race pauses if the browser tab becomes hidden.
 - **Live chat** in the right-hand column during the race: race control (lights out, merged incident lines, fastest lap, final lap, your position changes), rival drivers reacting to real events (often naming the part that caused them), and your messages and one-tap reactions. 80 characters, one message every 2 seconds, a starter word filter and HTML escaping, defined in `shared/chat.js` so a server can enforce the same rules. Rivals are simulated; there is no real multiplayer chat yet.
+- **Test runs are one live lap:** pressing Test car plays your car alone for one lap, and every weak section shows the worst problem it causes in the race, in order (the car shudders or slides, a pop-up names it and the seconds lost, a caption says when it first happens in the race). **Watch run again** replays that lap from the report.
 - **Learning loop:** practice reports forecast race risks with Watch and Fix it (highlighting the parts that remove each risk). Results show a podium, your incident reel with exact replays and fixes, three lessons from the field, and **Rebuild from this car** for the next attempt.
 - Desktop/mobile layouts that scale up on large screens, and a track picker.
 

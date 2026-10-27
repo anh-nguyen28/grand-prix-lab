@@ -13,6 +13,7 @@ test('desktop: scan, predict, improve, qualify, adjust, race, and reveal', async
   await page.locator('[data-action="view-chapter"][data-chapter="label"]').click();
   await expect(page.locator('.prediction')).toContainText('LOCKED');
   await page.getByRole('button', { name: /Test car/ }).click();
+  await page.getByRole('button', { name: 'Skip animation' }).click();
   await expect(page.locator('.run-time')).toBeVisible({ timeout: 30000 });
   const first = await page.locator('.run-time strong').textContent();
   await expect(page.locator('.race-risks')).toContainText('Tyres shredded');
@@ -21,6 +22,7 @@ test('desktop: scan, predict, improve, qualify, adjust, race, and reveal', async
   await page.locator('[data-action="pick-part"][data-id="hard"]').dblclick();
   await expect(page.locator('[data-action="fit-target"][data-fit-slot="wheels"]')).toContainText('Hard tyres');
   await page.getByRole('button', { name: /Test car/ }).click();
+  await page.getByRole('button', { name: 'Skip animation' }).click();
   await expect(page.locator('.run-time .positive')).toBeVisible({ timeout: 30000 });
   expect(await page.locator('.run-time strong').textContent()).not.toEqual(first);
   await expect(page.getByRole('button', { name: /Test car/ })).toBeDisabled();
@@ -83,6 +85,7 @@ test('mobile: layout, accessible help, setup, and prediction warning', async ({ 
   await page.getByRole('button', { name: /Test car/ }).click();
   await expect(page.getByRole('dialog')).toContainText('This answer does not change the car');
   await page.getByRole('button', { name: 'Continue without bonus' }).click();
+  await page.getByRole('button', { name: 'Skip animation' }).click();
   await expect(page.locator('.run-time')).toBeVisible({ timeout: 30000 });
   await page.locator('[data-action="view-chapter"][data-chapter="label"]').click();
   await expect(page.locator('.notes-body')).toHaveAttribute('data-chapter', 'label');

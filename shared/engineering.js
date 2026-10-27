@@ -65,6 +65,7 @@ export function specSheet(build) {
   ];
 }
 const round1 = value => Math.round(value * 10) / 10;
+const SEVERITY = { fire: 3, crash: 2 };
 
 // Events attach to lap distance inside the failing section. A car that keeps failing the same section is
 // reported on the first failing lap and then every third lap; the other laps cost half as much, quietly.
@@ -91,8 +92,22 @@ export function planIncidents(build, track = DEFAULT_TRACK) {
 }
 export const buildIncidents = (build, track = DEFAULT_TRACK) => planIncidents(build, track).events;
 
+// A single lap for the practice run: every weak section shows the worst thing that happens there over the race
+// (a fire beats a crash beats the rest, then the biggest time loss), once, at the start of the section.
+// `raceLap` keeps the lap it first happens on in the race. A fire is shown but does not end the lap.
+export function previewIncidents(build, track = DEFAULT_TRACK) {
+  const worst = new Map();
+  for (const event of buildIncidents(build, track)) {
+    const current = worst.get(event.section), rank = item => [SEVERITY[item.type] ?? 1, item.loss];
+    if (!current || rank(event)[0] > rank(current)[0] || (rank(event)[0] === rank(current)[0] && event.loss > current.loss)) worst.set(event.section, event);
+  }
+  return track.sections.filter(section => worst.has(section.id)).map(section => {
+    const event = worst.get(section.id);
+    return { ...event, raceLap: event.lap, lap: 1, distance: section.from + .02 };
+  });
+}
+
 // One line per weak section, led by the worst thing that happens there (a fire beats a crash beats the rest).
-const SEVERITY = { fire: 3, crash: 2 };
 export function setupRisks(build, track = DEFAULT_TRACK) {
   const worst = new Map();
   for (const event of buildIncidents(build, track)) {

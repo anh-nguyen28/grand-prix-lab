@@ -34,7 +34,7 @@ export function renderShell() {
         <section class="intel-panel" id="intel-panel" aria-label="Field notes"></section>
       </section>
       <div id="action-bar" class="action-bar"></div>
-      <footer class="app-footer"><span>Every millisecond matters. <span class="footer-divider">/</span> ADSC × AI GRAND PRIX</span><span>${RACE_LAPS} laps · ~2½ minutes · ${DEMO_TEAMS.length + 1} cars <button data-action="reset" aria-label="Restart this round">${icon('reset')} Restart</button></span></footer>
+      <footer class="app-footer"><span>Every millisecond matters. <span class="footer-divider">/</span> ADSC × AI GRAND PRIX</span><span>${RACE_LAPS} laps · ~3 minutes · ${DEMO_TEAMS.length + 1} cars <button data-action="reset" aria-label="Restart this round">${icon('reset')} Restart</button></span></footer>
     </main>
     <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>`;
@@ -72,7 +72,7 @@ function chapterBody(chapter, state, ui) {
     case 'data': return sensorReadings(state, ui);
     // The readings stay in view while the player decides on a label.
     case 'label': return sensorReadings(state, ui) + (state.phase === 'practice' || state.prediction ? prediction(state, ui) : '');
-    case 'train': return state.runs.length ? renderTrackStrip(state) + renderRunReport(state.runs.at(-1), state.runs.at(-2), `PRACTICE RUN 0${state.runs.length}`) + renderSectionForecast(state) + renderRisks(state) : `<ul class="track-tests">${trackById(state.trackId).sections.map(section => `<li><strong>${e(section.name)}</strong><span>${CONDITIONS[section.condition].label}: ${e(section.suggestion)}</span></li>`).join('')}</ul>`;
+    case 'train': return state.runs.length ? renderTrackStrip(state) + renderRunReport(state.runs.at(-1), state.runs.at(-2), `PRACTICE RUN 0${state.runs.length}`, state.runs.length - 1) + renderSectionForecast(state) + renderRisks(state) : `<ul class="track-tests">${trackById(state.trackId).sections.map(section => `<li><strong>${e(section.name)}</strong><span>${CONDITIONS[section.condition].label}: ${e(section.suggestion)}</span></li>`).join('')}</ul>`;
     case 'exam': return state.qualifying ? renderTrackStrip(state) + renderRunReport(state.qualifying, state.runs.at(-1), 'QUALIFYING REPORT') + renderSectionForecast(state) + renderRisks(state) : '';
   }
   return '';
@@ -82,7 +82,7 @@ function chapterBody(chapter, state, ui) {
 function renderRisks(state) {
   const risks = raceRiskForecast(state.build, trackById(state.trackId));
   if (!risks.length) return `<div class="race-risks clean"><span class="eyebrow">RACE RISKS FOUND</span><p>${icon('check')} None. This car should run clean for eight laps. Now it is about pace.</p></div>`;
-  return `<div class="race-risks"><span class="eyebrow">RACE RISKS FOUND · ${risks.length}</span>${risks.map(risk => `<div class="risk"><div><strong>${risk.title}</strong><small>${risk.retirement ? `Retires on lap ${risk.laps.at(-1)}` : `Lap ${risk.laps.join(' & ')} · costs ${risk.loss.toFixed(1)}s`}</small></div><button class="button small light" data-action="incident-demo" data-type="${risk.type}">${icon('play')} Watch</button><button class="button small primary" data-action="fix-risk" data-type="${risk.type}" ${['practice', 'adjust'].includes(state.phase) ? '' : 'disabled'}>Fix it</button></div>`).join('')}</div>`;
+  return `<div class="race-risks"><span class="eyebrow">RACE RISKS FOUND · ${risks.length}</span>${risks.map(risk => `<div class="risk"><div><strong>${risk.title}</strong><small>${risk.retirement ? `Retires on lap ${risk.laps.at(-1)}` : `Lap ${risk.laps.join(' & ')} · costs ${risk.loss.toFixed(1)}s`}</small></div><button class="button small primary" data-action="fix-risk" data-type="${risk.type}" ${['practice', 'adjust'].includes(state.phase) ? '' : 'disabled'}>Fix it</button></div>`).join('')}</div>`;
 }
 
 const raeSays = lines => `<div class="rae-line"><span class="rae-avatar" aria-hidden="true">${NARRATOR.name[0]}</span><div>${lines.map(line => `<p>${e(line)}</p>`).join('')}</div></div>`;
@@ -101,9 +101,9 @@ export function renderIntel(state, ui) {
   return `${header}<div class="notes-body" data-chapter="${shown.id}"><div class="notes-story"><span class="eyebrow">CHAPTER ${String(shown.number).padStart(2, '0')}</span><h3>${shown.title}</h3>${story}</div><div class="notes-activity">${ui.busy ? '' : chapterBody(shown, state, ui)}</div>${glossary}</div>`;
 }
 
-function renderRunReport(result, previous, label) {
+function renderRunReport(result, previous, label, replayIndex = null) {
   const improvement = previous ? previous.time - result.time : null;
-  return `<div class="run-report"><span class="eyebrow">${label}</span><div class="run-time"><strong>${result.time.toFixed(2)}<small>s</small></strong>${improvement !== null ? `<span class="${improvement >= 0 ? 'positive' : 'negative'}">${improvement >= 0 ? '↓' : '↑'} ${Math.abs(improvement).toFixed(2)}s ${improvement >= 0 ? 'quicker' : 'slower'}</span>` : '<span>Your first benchmark</span>'}</div><div class="telemetry">${result.segments.map(segment => `<div><span class="telemetry-number ${segment.good ? 'good' : ''}">${segment.good ? icon('check') : '!'}</span><div><h3>${segment.name}<small>${segment.time.toFixed(1)}s</small></h3><p>${segment.problem}</p>${!segment.good ? `<span class="suggestion">${segment.suggestion}</span>` : ''}</div></div>`).join('')}</div></div>`;
+  return `<div class="run-report"><span class="eyebrow">${label}</span>${replayIndex === null ? '' : `<button class="button small light watch-run" data-action="watch-run" data-run="${replayIndex}">${icon('play')} Watch run again</button>`}<div class="run-time"><strong>${result.time.toFixed(2)}<small>s</small></strong>${improvement !== null ? `<span class="${improvement >= 0 ? 'positive' : 'negative'}">${improvement >= 0 ? '↓' : '↑'} ${Math.abs(improvement).toFixed(2)}s ${improvement >= 0 ? 'quicker' : 'slower'}</span>` : '<span>Your first benchmark</span>'}</div><div class="telemetry">${result.segments.map(segment => `<div><span class="telemetry-number ${segment.good ? 'good' : ''}">${segment.good ? icon('check') : '!'}</span><div><h3>${segment.name}<small>${segment.time.toFixed(1)}s</small></h3><p>${segment.problem}</p>${!segment.good ? `<span class="suggestion">${segment.suggestion}</span>` : ''}</div></div>`).join('')}</div></div>`;
 }
 
 export function renderActions(state, ui) {
