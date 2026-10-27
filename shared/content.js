@@ -75,7 +75,30 @@ export const DEMO_TEAMS = [
   rival('tide', 'Ravi Menon', 'Tidewater', '#81d4fa', 'road', 'electric', 'carbon'),
 ];
 // Per-track rival builds [wheels, power, body, chassis]; ids not listed keep their Dune Valley build.
-export const RIVAL_BUILDS = { dune: {}, mountain: {}, quarry: {} };
+// Per-track rival builds [wheels, power, body, chassis]; ids not listed keep their Dune Valley build.
+export const RIVAL_BUILDS = {
+  dune: {
+    moss: ['hard', 'solar', 'alloy', 'titanium'], sun: ['tracks', 'solar', 'carbon', 'stiff'], apex: ['hard', 'turbo', 'alloy', 'sprung'],
+    vector: ['tracks', 'electric', 'carbon', 'sprung'], delta: ['offroad', 'solar', 'alloy', 'titanium'], alpine: ['hard', 'turbo', 'scout', 'stiff'],
+    mesa: ['hard', 'electric', 'carbon', 'stiff'], pixel: ['tracks', 'battery', 'drs', 'stiff'],
+  },
+  mountain: {
+    moss: ['inter', 'electric', 'alloy', 'stiff'], orbit: ['wet', 'turbo', 'carbon', 'stiff'], sun: ['soft', 'battery', 'carbon', 'stiff'],
+    apex: ['inter', 'torque', 'drs', 'stiff'], vector: ['medium', 'electric', 'carbon', 'stiff'], delta: ['offroad', 'solar', 'alloy', 'stiff'],
+    kite: ['soft', 'torque', 'alloy', 'stiff'], north: ['road', 'electric', 'scout', 'stiff'], blaze: ['road', 'torque', 'alloy', 'stiff'],
+    alpine: ['inter', 'turbo', 'carbon', 'stiff'], mesa: ['medium', 'electric', 'carbon', 'sprung'], pixel: ['inter', 'battery', 'drs', 'stiff'],
+    drift: ['soft', 'turbo', 'scout', 'stiff'], crest: ['offroad', 'battery', 'floor', 'stiff'], volt: ['wet', 'electric', 'alloy', 'stiff'],
+    reed: ['soft', 'solar', 'floor', 'stiff'], forge: ['medium', 'torque', 'scout', 'stiff'], lumen: ['offroad', 'solar', 'carbon', 'stiff'], tide: ['road', 'electric', 'carbon', 'stiff'],
+  },
+  quarry: {
+    moss: ['tracks', 'solar', 'alloy', 'titanium'], orbit: ['hard', 'sprint', 'scout', 'stiff'], sun: ['hard', 'solar', 'carbon', 'sprung'],
+    apex: ['hard', 'battery', 'alloy', 'sprung'], vector: ['tracks', 'solar', 'alloy', 'titanium'], delta: ['hard', 'solar', 'alloy', 'sprung'],
+    kite: ['medium', 'electric', 'alloy', 'sprung'], north: ['medium', 'solar', 'alloy', 'sprung'], blaze: ['hard', 'electric', 'alloy', 'sprung'],
+    alpine: ['hard', 'turbo', 'alloy', 'sprung'], mesa: ['hard', 'electric', 'drs', 'titanium'], pixel: ['tracks', 'battery', 'drs', 'sprung'],
+    drift: ['soft', 'turbo', 'scout', 'stiff'], crest: ['paddle', 'battery', 'floor', 'stiff'], volt: ['offroad', 'sprint', 'alloy', 'stiff'],
+    reed: ['soft', 'solar', 'floor', 'stiff'], forge: ['medium', 'torque', 'scout', 'stiff'], lumen: ['hard', 'solar', 'carbon', 'sprung'], tide: ['medium', 'electric', 'alloy', 'titanium'],
+  },
+};
 export const rivalsFor = trackId => DEMO_TEAMS.map(team => {
   const override = RIVAL_BUILDS[trackId]?.[team.id];
   return override ? { ...team, build: { wheels: override[0], power: override[1], body: override[2], chassis: override[3], sensor: team.build.sensor } } : team;
