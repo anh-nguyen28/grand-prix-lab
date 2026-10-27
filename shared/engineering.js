@@ -75,7 +75,7 @@ export function setupRisks(build) {
 
 // Events are attached to lap distance. Boosting changes when a car reaches them,
 // but never moves a corner incident onto an unrelated section of track.
-export function buildIncidents(build) {
+export function buildIncidents(build, track) {
   const events = [];
   const add = (type, lap, loss) => events.push({ ...INCIDENTS[type], type, lap, loss: loss ?? INCIDENTS[type].loss, distance: lap - 1 + INCIDENTS[type].phase });
   if (has(build, 'lowGrip')) { add('wheelspin', 1, 1.2); add('wheelspin', 6, 1.8); }
@@ -87,9 +87,9 @@ export function buildIncidents(build) {
 }
 
 // Every incident this setup will meet in the race, grouped so practice can warn about it.
-export function raceRiskForecast(build) {
+export function raceRiskForecast(build, track) {
   const groups = new Map();
-  for (const event of buildIncidents(build)) {
+  for (const event of buildIncidents(build, track)) {
     const group = groups.get(event.type) || { type: event.type, title: event.title, laps: [], loss: 0, retirement: false };
     group.laps.push(event.lap); group.loss = Math.round((group.loss + (event.type === 'fire' ? 0 : event.loss)) * 10) / 10; group.retirement ||= event.type === 'fire';
     groups.set(event.type, group);
@@ -98,9 +98,9 @@ export function raceRiskForecast(build) {
 }
 
 // Single-part swaps that remove an incident type and still fit the budget.
-export function incidentFixes(build, type) {
+export function incidentFixes(build, type, track) {
   return SLOTS.flatMap(slot => Object.values(PARTS).filter(part => part.slot === slot && part.id !== build[slot]).filter(part => {
     const next = { ...build, [slot]: part.id };
-    return buildStats(next).cost <= BUDGET && !buildIncidents(next).some(event => event.type === type);
+    return buildStats(next).cost <= BUDGET && !buildIncidents(next, track).some(event => event.type === type);
   }).map(part => ({ slot, id: part.id, name: part.name, cost: part.cost - PARTS[build[slot]].cost })));
 }

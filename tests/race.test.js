@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import { BOOST_SECONDS, DEFAULT_BUILD, DEMO_TEAMS, RACE_PLAYBACK_MS, RACE_LAPS } from '../shared/content.js';
 import { addPlayerBoost, createRace, effectiveTime, finishRace, sampleRace } from '../shared/race.js';
 import { createGame, transition } from '../shared/game.js';
+import { DEFAULT_TRACK, TRACKS } from '../shared/tracks.js';
 
 const entries = [{ id: 'you', name: 'Ada', build: DEFAULT_BUILD }, ...DEMO_TEAMS];
 test('the full field receives a deterministic classification over an eight-lap race', () => {
   const race=createRace(entries,DEFAULT_BUILD);
   assert.equal(race.laps,8);assert.equal(race.field.length,DEMO_TEAMS.length+1);assert.ok(race.field.length>=20);assert.equal(RACE_PLAYBACK_MS,150000);
-  assert.ok(race.field.every(car=>car.result.segments.length===24));
+  assert.ok(race.field.every(car=>car.result.segments.length===RACE_LAPS*DEFAULT_TRACK.sections.length));
   assert.deepEqual(finishRace(race),finishRace(createRace(entries,DEFAULT_BUILD)));
   const final=sampleRace(race,race.maxTime+1);
   assert.ok(final.every(car=>car.retired||(car.finished&&car.lap===RACE_LAPS&&Math.abs(car.distance-RACE_LAPS)<1e-8)));
@@ -43,5 +44,17 @@ test('qualifying determines the grid and no car travels backwards through the la
   const previous=new Map();
   for(let time=0;time<race.maxTime+2;time+=.75)for(const car of sampleRace(race,time)){
     assert.ok(car.distance>=(previous.get(car.id)||0)-1e-8);assert.ok(Number.isFinite(car.gap)&&car.gap>=0);previous.set(car.id,car.distance);
+  }
+});
+
+test('every track produces a deterministic eight-lap race with the right number of segments', () => {
+  for (const track of TRACKS) {
+    const a = createRace(entries, DEFAULT_BUILD, track), b = createRace(entries, DEFAULT_BUILD, track);
+    assert.equal(a.trackId, track.id);
+    assert.deepEqual(finishRace(a), finishRace(b));
+    assert.ok(a.field.every(car => car.result.segments.length === RACE_LAPS * track.sections.length), track.id);
+    const final = sampleRace(a, a.maxTime + 1);
+    assert.ok(final.every(car => car.retired || car.finished), track.id);
+    assert.ok(track.sections.some(section => section.id === sampleRace(a, 1)[0].zone.id), track.id);
   }
 });

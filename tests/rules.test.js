@@ -92,9 +92,9 @@ test('adjust counts changed slots, supports undo, and rejects a third slot', () 
 
 test('better sand grip improves the mystery stretch and deterministic simulation stays reproducible', () => {
   const basic = simulate(DEFAULT_BUILD);
-  const improved = simulate({ ...DEFAULT_BUILD, wheels: 'offroad' });
-  assert.ok(improved.segments[1].time < basic.segments[1].time);
-  assert.match(basic.segments[1].suggestion, /grooved/);
+  const shredded = simulate({ ...DEFAULT_BUILD, wheels: 'soft', body: 'scout' });
+  assert.ok(shredded.segments[1].time > basic.segments[1].time);
+  assert.match(shredded.segments[1].suggestion, /Hard or endurance/);
   assert.deepEqual(simulate(DEFAULT_BUILD), basic);
   assert.ok(basic.segments.every(segment => Number.isFinite(segment.time) && segment.time > 0));
 });
