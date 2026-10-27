@@ -153,3 +153,4 @@
 .incident-pop[hidden]{display:none}
 @keyframes incident-pop-in{from{opacity:0;margin-top:6px}to{opacity:1;margin-top:0}}
 @media(prefers-reduced-motion:reduce){.incident-pop{animation:none}}
+.standing-team{display:block;margin-top:2px;font-size:9px;font-weight:500;font-style:normal;color:#8e9db3}

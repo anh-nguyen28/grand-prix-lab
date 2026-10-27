@@ -8,7 +8,7 @@ async function dragPart(page,id,slot){
 }
 test('physical assembly, part details, safe alternatives, and an isolated brake-fire demo',async({page})=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.stack));
-  await page.goto('/');await expect(page.locator('#scene')).toHaveAttribute('data-ready','true');
+  await page.goto('/');await page.getByRole('button',{name:'Drive to the garage'}).click();await expect(page.locator('#scene')).toHaveAttribute('data-ready','true');
   await page.screenshot({path:'artifacts/workshop-desktop.png',fullPage:true});
   await dragPart(page,'offroad','wheels');
   await expect(page.locator('[data-action="fit-target"][data-fit-slot="wheels"]')).toContainText('Grooved tyres');

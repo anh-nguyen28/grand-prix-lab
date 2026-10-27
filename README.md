@@ -13,10 +13,11 @@ npm install
 npm run dev
 ```
 
-Use **Your driver** to set your name. Drag an illustrated part onto the car, double-click it, or tap a part and then the highlighted fitting point. The garage shows the parts shelf, the car and its stats side by side at the same height (the parts box scrolls; its header compacts to a one-line budget and smaller tabs as you scroll), with Field notes across the full width below. **More details** explains each option. **Preview failures** opens the engineering incident lab.
+The session opens in the **Showroom**: name your driver, join one of the 11 F1 teams (or name your own team; picking a team loads its colours), and pick body paint (12 colours or any custom colour), finish (gloss, matte, metallic), accent colour, livery style, helmet and race number on a spotlit turntable, then **Drive to the garage**. The header's **Showroom** link reopens it at any time except mid-race; Escape leaves without changes. The livery is cosmetic only and follows your car onto the track, the nameplates, the minimap and the chat. Your team badge sits on the car's sidepods and rear wing and appears in the race HUD, timing tower, car nameplate and results. No official logos are bundled: each team shows an original monogram badge until a logo file the workshop may use is added to `public/team-logos/` (see the README there). Use **Your driver** to set your name. Drag an illustrated part onto the car, double-click it, or tap a part and then the highlighted fitting point. The garage shows the parts shelf, the car and its stats side by side at the same height (the parts box scrolls; its header compacts to a one-line budget and smaller tabs as you scroll), with Field notes across the full width below. **More details** explains each option. **Preview failures** opens the engineering incident lab.
 
 ## Playable now
 
+- Showroom livery editor before the garage (`src/ui/showroom.js`, `src/scene/showroom.js`), validated by `cleanLivery` in `shared/content.js`.
 - Original 3D open-wheel car with visible component changes and projected fitting points.
 - Visual parts shelf, pointer drag-and-drop, tap/keyboard fitting and detailed part inspection.
 - **Three tracks with different conditions** (Dune Valley: dry, abrasive, hot; Mountain Pass: cold, damp, rain; Quarry Ring: bumpy, hot, abrasive), each with 4–5 sections that demand different stats from the car. A section the car cannot handle costs time, then causes an incident, then (on crashable sections) a crash worth a big time loss. The car keeps racing; only the brake fire retires it.

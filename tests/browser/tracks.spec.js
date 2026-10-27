@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('a full race on Mountain Pass classifies everyone, shows crashes and aquaplaning, and retires nobody', async ({ page }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.stack));
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('button',{name:'Drive to the garage'}).click();
   await page.getByRole('button', { name: /Tracks/ }).click();
   await page.locator('.season-card[data-track="mountain"]').click();
   await expect(page.locator('#round-title')).toHaveText('Mountain Pass');

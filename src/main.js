@@ -6,6 +6,7 @@ import './engineering.css';
 import './garage.css';
 import './broadcast.css';
 import './layout.css';
+import './showroom.css';
 
 // Scale the UI up on big screens (never below 1, so small screens are unchanged). Limited by height too, so the garage still fits.
 function fitScale() {
@@ -14,7 +15,7 @@ function fitScale() {
 }
 fitScale();
 addEventListener('resize', fitScale);
-import { PARTS, RACE_LAPS, RACE_PLAYBACK_MS } from '../shared/content.js';
+import { LIVERY_ACCENTS, LIVERY_FINISHES, LIVERY_HELMETS, LIVERY_PAINTS, LIVERY_PATTERNS, PARTS, PLAYER_TEAMS, RACE_LAPS, RACE_PLAYBACK_MS, carNumber, cleanLivery } from '../shared/content.js';
 import { updateRaceBroadcast, renderBroadcastTools, resetRaceBroadcast } from './ui/race-ui.js';
 import { renderEngineering, animateSpecs, partDetailsDialog, incidentLabDialog, partAvailability } from './ui/engineering-ui.js';
 import { createAssemblyInteraction } from './ui/assembly.js';
@@ -22,6 +23,9 @@ import { createIncidentDemo, createPracticeLap, incidentImpact } from '../shared
 import { INCIDENTS, incidentFixes } from '../shared/engineering.js';
 import { createLocalSession } from './adapters/local-session.js';
 import { createWorkshop } from './scene/workshop.js';
+import { createShowroom } from './scene/showroom.js';
+import { renderShowroomShell, renderShowroomPanel } from './ui/showroom.js';
+import { loadTeamLogo, teamLogo } from './ui/team-logo.js';
 import { renderShell, renderParts, renderIntel, renderActions, renderSteps } from './ui/render.js';
 import { briefingDialog, helpDialog, predictionWarningDialog, profileDialog, tracksDialog } from './ui/dialogs.js';
 import { TRACKS, trackById } from '../shared/tracks.js';
@@ -30,13 +34,13 @@ import { sendPlayerMessage } from './ui/race-chat.js';
 import { storyChapters } from '../shared/story.js';
 
 const app = document.querySelector('#app');
-app.innerHTML = renderShell();
+app.innerHTML = renderShell() + renderShowroomShell();
 const session = createLocalSession();
 // Playback speeds, in the order the button cycles through them.
 const SPEEDS = [1, 1.5, 2, 0.5];
 // A practice run is one lap, played a little slower than real time so each problem is easy to read.
 const PRACTICE_SLOWDOWN = 1.3;
-const ui = { category: 'wheels', viewChapter: null, currentChapter: null, suggested: new Set(), guess: null, view: 'rover', busy: false, scanning: false, runLabel: '', raceTelemetry: null, armedPart: null, demo: null, paused: false, playbackSpeed: 1, sim: null };
+const ui = { category: 'wheels', viewChapter: null, currentChapter: null, suggested: new Set(), guess: null, view: 'rover', busy: false, scanning: false, runLabel: '', raceTelemetry: null, armedPart: null, demo: null, paused: false, playbackSpeed: 1, sim: null, livery: null, team: null, driverName: '', firstVisit: true };
 const scene = createWorkshop(document.querySelector('#scene'));
 const dialog = document.querySelector('#dialog');
 let toastTimer, finishRun = null, runToken = 0, scanToken = 0, liveRace = null;
@@ -84,13 +88,15 @@ function render() {
         ? ['THE GRAND PRIX', 'Let your build do the talking.', 'Eight laps. A full grid. Watch your engineering come alive.']
         : ['THE PADDOCK', 'Your race starts in the garage.', 'Read the circuit. Dial in your setup. Earn your place on the grid.'];
   ['eyebrow', 'heading', 'subheading'].forEach((id, i) => { document.getElementById(id).textContent = copy[i]; });
-  document.querySelector('#rover-title').innerHTML = `CAR 07 <span>/ ${state.phase === 'practice' ? 'PERFORMANCE LAB' : state.phase === 'adjust' ? 'THE FINAL TUNE-UP' : track.title.toUpperCase()}</span>`;
+  document.querySelector('#rover-title').innerHTML = `CAR ${carNumber(state.profile.livery)} · ${state.profile.team.name.replaceAll('&', '&amp;').replaceAll('<', '&lt;').toUpperCase()} <span>/ ${state.phase === 'practice' ? 'PERFORMANCE LAB' : state.phase === 'adjust' ? 'THE FINAL TUNE-UP' : track.title.toUpperCase()}</span>`;
   document.querySelector('.workspace').classList.toggle('show-results', state.phase === 'results');
   document.querySelector('.workspace').classList.toggle('race-mode', state.phase === 'race' || !!ui.demo || !!ui.sim);
   document.body.classList.toggle('race-active', state.phase === 'race' || !!ui.demo || !!ui.sim);
   document.querySelector('.workspace').classList.toggle('demo-mode', !!ui.demo || !!ui.sim);
   scene.setAssembly(state, ui.armedPart);
-  scene.setBuild(state.build);
+  scene.setBuild(state.build, { ...state.profile.livery, team: state.profile.team });
+  // A team logo file may load after the first paint; redraw once it arrives.
+  if (state.profile.team.id !== ui.logoTeam) { ui.logoTeam = state.profile.team.id; loadTeamLogo(ui.logoTeam).then(image => { if (image && ui.logoTeam === state.profile.team.id) { ui.statsKey = null; render(); } }); }
   scene.setKnowledge?.(state.runs.length > 0 || state.phase !== 'practice');
   if (state.phase === 'race' && ui.raceTelemetry) updateRaceBroadcast(state.race, ui.raceTelemetry);
   if (focusKey && !dialog.open) {
@@ -136,7 +142,8 @@ function beginAnimation(entries,label,next,duration=6500,demoRace=null){
   caption.hidden=!demoRace;
   if(demoRace&&ui.sim)caption.innerHTML=simCaption(null);
   else if(demoRace)caption.innerHTML=`<span>CONTROLLED SCENARIO · NO SCORE</span><strong>${INCIDENTS[ui.demo].title}</strong><p>${INCIDENTS[ui.demo].cause}</p><small id="demo-stage">Approaching the test zone…</small>`;
-  overlay.innerHTML=racing?`<div class="start-sequence"><span>YOUR DRIVER · ${session.getSnapshot().profile.name.replaceAll('&','&amp;').replaceAll('<','&lt;')}</span><div class="start-lights">${'<i></i>'.repeat(5)}</div><strong>HOLD YOUR BREATH.</strong></div><div class="broadcast-hud"><span class="live-tag"><span class="live-dot"></span><span id="race-chapter">STARTING GRID</span></span><div><small>RACE LAP</small><strong id="race-lap">01 / ${String(RACE_LAPS).padStart(2,'0')}</strong></div><div><small>YOUR POSITION</small><strong id="your-position">—</strong></div><div><small>RACE TIME</small><strong id="race-clock">0:00.0</strong></div></div><div class="run-progress"><i></i></div>`:`<div><span class="live-dot"></span><strong>${label}</strong><span id="run-progress-label">0%</span></div><div class="run-progress"><i></i></div>`;
+  const profile=session.getSnapshot().profile,badge=teamLogo(profile.team,profile.livery,'hud-logo');
+  overlay.innerHTML=racing?`<div class="start-sequence"><span class="start-team">${badge}${profile.name.replaceAll('&','&amp;').replaceAll('<','&lt;')} · ${profile.team.name.replaceAll('&','&amp;').replaceAll('<','&lt;')}</span><div class="start-lights">${'<i></i>'.repeat(5)}</div><strong>HOLD YOUR BREATH.</strong></div><div class="broadcast-hud"><span class="live-tag"><span class="live-dot"></span><span id="race-chapter">STARTING GRID</span></span><div><small>RACE LAP</small><strong id="race-lap">01 / ${String(RACE_LAPS).padStart(2,'0')}</strong></div><div class="hud-you">${demoRace?'':badge}<small>YOUR POSITION</small><strong id="your-position">—</strong></div><div><small>RACE TIME</small><strong id="race-clock">0:00.0</strong></div></div><div class="run-progress"><i></i></div>`:`<div><span class="live-dot"></span><strong>${label}</strong><span id="run-progress-label">0%</span></div><div class="run-progress"><i></i></div>`;
   if(demoRace)overlay.querySelector('.start-sequence').hidden=true;
   finishRun=()=>{
     if(token!==runToken)return;runToken++;finishRun=null;ui.busy=false;overlay.hidden=true;tools.hidden=true;caption.hidden=true;document.querySelector('#corner-readout').hidden=true;document.querySelector('#incident-banner').hidden=true;document.querySelector('#race-callout').hidden=true;
@@ -178,7 +185,7 @@ function simCaption(row) {
 // Plays the car alone for one lap on the selected track. The lap is deterministic, so the same run can be watched again.
 function playSimulation(run, label, next) {
   const state = session.getSnapshot();
-  const race = createPracticeLap({ id: 'you', name: state.profile.name, build: run.build, color: '#ff3b38' }, trackById(run.trackId));
+  const race = createPracticeLap({ id: 'you', name: state.profile.name, build: run.build, color: state.profile.livery.paint }, trackById(run.trackId));
   ui.sim = { label, race };
   beginAnimation(race.field, label, () => { ui.sim = null; ui.raceTelemetry = null; next(); }, Math.round(race.maxTime * 1000 * PRACTICE_SLOWDOWN), race);
 }
@@ -210,7 +217,7 @@ function startRun(type, allowNoPrediction = false) {
     });
     return;
   }
-  beginAnimation([{ id: 'you', name: updated.profile.name, build: updated.build, result: run, color: '#ff3b38' }], 'Qualifying lap', () => {
+  beginAnimation([{ id: 'you', name: updated.profile.name, build: updated.build, result: run, color: updated.profile.livery.paint }], 'Qualifying lap', () => {
     ui.viewChapter = null;
     dispatch({ type: 'FINISH_QUALIFY' });
     setView('rover');
@@ -235,6 +242,61 @@ function reset(build = null) {
   session.reset(build); setView('rover'); closeDialog(); showToast('Fresh car, fresh possibilities. Your two practice runs are ready.');
 }
 
+// The showroom edits a draft livery; it is applied when the player drives to the garage.
+const showroom = document.querySelector('#showroom'), showroomForm = document.querySelector('#showroom-form');
+let showroomScene = null;
+const pick = list => list[Math.floor(Math.random() * list.length)];
+function renderShowroom(focus = null) {
+  showroomForm.innerHTML = renderShowroomPanel(session.getSnapshot(), ui.livery, ui.driverName, ui.firstVisit, ui.team);
+  if (focus) showroomForm.querySelector(focus)?.focus({ preventScroll: true });
+}
+function previewLivery() {
+  const number = carNumber(ui.livery);
+  showroomScene?.setCar(session.getSnapshot().build, { ...ui.livery, team: ui.team });
+  document.querySelector('#showroom-number').textContent = number; document.querySelector('#showroom-watermark').textContent = number;
+  document.querySelector('#showroom-driver').textContent = ui.driverName.trim() || 'Your car';
+  const teamName = ui.team.id === 'custom' ? ui.team.name.trim() || 'Your own team' : ui.team.name;
+  document.querySelector('#showroom-team-label').innerHTML = `${teamLogo({ ...ui.team, name: teamName }, ui.livery, 'plate-logo')}<span>${teamName.replaceAll('&', '&amp;').replaceAll('<', '&lt;')}</span>`;
+  showroom.style.setProperty('--livery-paint', ui.livery.paint); showroom.style.setProperty('--livery-accent', ui.livery.accent);
+  const preview = showroomForm.querySelector('.number-preview'); if (preview) preview.textContent = number;
+}
+function updateLivery(patch, focus) { ui.livery = cleanLivery({ ...ui.livery, ...patch }); previewLivery(); if (focus !== false) renderShowroom(focus); }
+function openShowroom() {
+  if (ui.busy) return;
+  const state = session.getSnapshot();
+  ui.livery = { ...state.profile.livery }; ui.team = { ...state.profile.team }; ui.driverName = state.profile.name === 'You' ? '' : state.profile.name;
+  closeDialog(); renderShowroom(); showroom.hidden = false;
+  document.querySelectorAll('.site-header, .app-main').forEach(element => { element.inert = true; });
+  showroomScene ??= createShowroom(document.querySelector('#showroom-scene'));
+  showroomScene.start(); previewLivery();
+  // Show any team logo files the workshop has added.
+  Promise.all(Object.keys(PLAYER_TEAMS).map(loadTeamLogo)).then(images => { if (images.some(Boolean) && !showroom.hidden) { renderShowroom(); previewLivery(); } });
+  showroomForm.querySelector('button.primary')?.focus({ preventScroll: true });
+}
+function closeShowroom(apply) {
+  if (showroom.hidden) return;
+  if (apply) {
+    const state = session.getSnapshot(), name = ui.driverName.trim();
+    if (!dispatch({ type: 'SET_TEAM', team: ui.team }).ok) { showroomForm.querySelector('#showroom-team')?.focus(); return; }
+    dispatch({ type: 'SET_LIVERY', livery: ui.livery });
+    if (name && name !== state.profile.name && state.phase === 'practice') dispatch({ type: 'SET_PROFILE', name, mode: state.profile.mode });
+  }
+  showroom.hidden = true; showroomScene?.stop(); showroomForm.replaceChildren();
+  document.querySelectorAll('.site-header, .app-main').forEach(element => { element.inert = false; });
+  if (apply) showToast(ui.firstVisit ? `Car ${carNumber(ui.livery)} is in the garage. Now give it the right parts.` : 'Fresh livery fitted. It will show on track.');
+  ui.firstVisit = false; document.querySelector('[data-action="showroom"]')?.focus({ preventScroll: true });
+}
+showroomForm.addEventListener('input', event => {
+  const target = event.target;
+  if (target.id === 'showroom-name') { ui.driverName = target.value; previewLivery(); }
+  else if (target.id === 'showroom-team') { ui.team.name = target.value; previewLivery(); }
+  else if (target.id === 'showroom-number-input') { const number = Number(target.value); if (number >= 1 && number <= 99) updateLivery({ number }, false); }
+  // Keep the native colour picker open while dragging: preview now, redraw the panel on change.
+  else if (target.dataset.liveryKey) { target.parentElement.style.setProperty('--swatch', target.value); updateLivery({ [target.dataset.liveryKey]: target.value }, false); }
+});
+showroomForm.addEventListener('change', event => { if (event.target.dataset.liveryKey) renderShowroom(`[data-livery-key="${event.target.dataset.liveryKey}"]`); });
+showroom.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); closeShowroom(false); } });
+
 document.addEventListener('click', async event => {
   const button = event.target.closest('[data-action]'); if (!button || button.disabled) return;
   const { action } = button.dataset;
@@ -247,6 +309,16 @@ document.addEventListener('click', async event => {
     case 'tracks': openDialog(tracksDialog(session.getSnapshot())); break;
     case 'select-track': if (dispatch({ type: 'SELECT_TRACK', id: button.dataset.track }).ok) { ui.guess = null; ui.viewChapter = null; ui.suggested.clear(); closeDialog(); showToast(`${trackById(button.dataset.track).title} selected.`); } break;
     case 'profile': openDialog(profileDialog(session.getSnapshot())); break;
+    case 'showroom': openShowroom(); break;
+    case 'livery': updateLivery({ [button.dataset.key]: button.dataset.value }, `[data-key="${button.dataset.key}"][data-value="${button.dataset.value}"]`); break;
+    case 'team': {
+      const id = button.dataset.team;
+      if (id === 'custom') { ui.team = { id, name: ui.team.id === 'custom' ? ui.team.name : '' }; previewLivery(); renderShowroom('#showroom-team'); }
+      else { ui.team = { id, name: PLAYER_TEAMS[id].name }; updateLivery(PLAYER_TEAMS[id].livery, `[data-action="team"][data-team="${id}"]`); }
+      break;
+    }
+    case 'livery-number': updateLivery({ number: (ui.livery.number + Number(button.dataset.step) + 98) % 99 + 1 }, `[data-action="livery-number"][data-step="${button.dataset.step}"]`); break;
+    case 'livery-random': updateLivery({ paint: pick(LIVERY_PAINTS).color, accent: pick(LIVERY_ACCENTS).color, helmet: pick(LIVERY_HELMETS).color, finish: pick(Object.keys(LIVERY_FINISHES)), pattern: pick(Object.keys(LIVERY_PATTERNS)), number: 1 + Math.floor(Math.random() * 99) }, '[data-action="livery-random"]'); break;
     case 'close-dialog': closeDialog(); break;
     case 'category': ui.category = button.dataset.category; render(); break;
     case 'pick-part': armPart(button.dataset.id); break;
@@ -286,7 +358,7 @@ document.addEventListener('click', async event => {
     case 'race-speed': ui.playbackSpeed=SPEEDS[(SPEEDS.indexOf(ui.playbackSpeed)+1)%SPEEDS.length];scene.setPlayback({speed:ui.playbackSpeed});button.textContent=`${ui.playbackSpeed}×`; break;
     case 'boost': if (ui.raceTelemetry?.started && !ui.paused) dispatch({ type: 'BOOST', elapsed: ui.raceTelemetry.elapsed }); break;
     case 'skip-run': scene.finishAnimation(); break;
-    case 'chat-react': { const error = sendPlayerMessage(button.dataset.text, { color: '#ff3b38' }); if (error) showToast(error); break; }
+    case 'chat-react': { const error = sendPlayerMessage(button.dataset.text, { color: session.getSnapshot().profile.livery.paint }); if (error) showToast(error); break; }
     case 'reset': reset(); break;
     case 'rebuild': reset(session.getSnapshot().build); showToast('Same car, fresh round. Apply what the race taught you.'); break;
     case 'replay': startReplay(button.dataset.driverId, button.dataset.distance); break;
@@ -307,10 +379,11 @@ document.addEventListener('keydown', event => {
 document.addEventListener('submit', event => {
   if (event.target.id === 'chat-form') {
     event.preventDefault(); const input = event.target.querySelector('#chat-input');
-    const error = sendPlayerMessage(input.value, { color: '#ff3b38' });
+    const error = sendPlayerMessage(input.value, { color: session.getSnapshot().profile.livery.paint });
     if (error) showToast(error); else input.value = '';
     return;
   }
+  if (event.target.id === 'showroom-form') { event.preventDefault(); closeShowroom(true); return; }
   if (event.target.id !== 'profile-form') return;
   event.preventDefault(); const form = new FormData(event.target);
   if (session.getSnapshot().phase !== 'practice') session.reset();
@@ -318,4 +391,6 @@ document.addEventListener('submit', event => {
 });
 dialog.addEventListener('click', event => { if (event.target === dialog) { const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeDialog(); } });
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&ui.busy){ui.paused=true;scene.setPlayback({paused:true});}});
-window.addEventListener('beforeunload', () => scene.dispose(), { once: true });
+window.addEventListener('beforeunload', () => { scene.dispose(); showroomScene?.dispose(); }, { once: true });
+// Every session opens in the showroom, so players pick their colours before the garage.
+openShowroom();

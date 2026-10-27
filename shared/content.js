@@ -103,3 +103,68 @@ export const rivalsFor = trackId => DEMO_TEAMS.map(team => {
   return override ? { ...team, build: { wheels: override[0], power: override[1], body: override[2], chassis: override[3], sensor: team.build.sensor } } : team;
 });
 export const driverCode = entry => entry.id === 'you' ? 'YOU' : entry.name.split(' ').at(-1).slice(0, 3).toUpperCase();
+
+// The showroom livery is cosmetic only: it never changes how the car races.
+export const LIVERY_PAINTS = [
+  { name: 'Grid red', color: '#ef3038' }, { name: 'Papaya', color: '#ff8a1f' }, { name: 'Sunburst', color: '#ffcc33' },
+  { name: 'Racing green', color: '#13744f' }, { name: 'Mint', color: '#3fe0b0' }, { name: 'Electric blue', color: '#2f6bff' },
+  { name: 'Ice', color: '#9fd6ff' }, { name: 'Violet', color: '#8a4dff' }, { name: 'Hot pink', color: '#ff4fa3' },
+  { name: 'Silver arrow', color: '#c3cad4' }, { name: 'Stealth', color: '#23272f' }, { name: 'Pearl', color: '#f4f2ec' },
+];
+export const LIVERY_ACCENTS = [
+  { name: 'White', color: '#f2f5fb' }, { name: 'Carbon', color: '#151921' }, { name: 'Gold', color: '#e8b54a' },
+  { name: 'Cyan', color: '#35e0ff' }, { name: 'Lime', color: '#b6f23a' }, { name: 'Red', color: '#ef3038' },
+];
+export const LIVERY_HELMETS = [
+  { name: 'Yellow', color: '#f2d977' }, { name: 'White', color: '#f2f5fb' }, { name: 'Black', color: '#1b1f27' },
+  { name: 'Orange', color: '#ff8a1f' }, { name: 'Blue', color: '#2f6bff' }, { name: 'Pink', color: '#ff4fa3' },
+];
+export const LIVERY_FINISHES = {
+  gloss: { name: 'Gloss', roughness: .25, metalness: .25 },
+  matte: { name: 'Matte', roughness: .8, metalness: 0 },
+  metallic: { name: 'Metallic', roughness: .28, metalness: .8 },
+};
+export const LIVERY_PATTERNS = {
+  classic: { name: 'Pinstripe', description: 'Thin accent lines along the sidepods.' },
+  racing: { name: 'Twin stripe', description: 'Two accent stripes from nose to engine cover.' },
+  split: { name: 'Two-tone', description: 'Accent-coloured sidepods and wing endplates.' },
+};
+export const DEFAULT_LIVERY = { paint: '#ef3038', accent: '#f2f5fb', helmet: '#f2d977', finish: 'gloss', pattern: 'classic', number: 7 };
+
+const HEX = /^#[0-9a-f]{6}$/i;
+export function cleanLivery(livery = {}) {
+  const color = (value, fallback) => HEX.test(value ?? '') ? value.toLowerCase() : fallback;
+  const number = Math.round(Number(livery.number));
+  return {
+    paint: color(livery.paint, DEFAULT_LIVERY.paint), accent: color(livery.accent, DEFAULT_LIVERY.accent), helmet: color(livery.helmet, DEFAULT_LIVERY.helmet),
+    finish: LIVERY_FINISHES[livery.finish] ? livery.finish : DEFAULT_LIVERY.finish,
+    pattern: LIVERY_PATTERNS[livery.pattern] ? livery.pattern : DEFAULT_LIVERY.pattern,
+    number: number >= 1 && number <= 99 ? number : DEFAULT_LIVERY.number,
+  };
+}
+export const carNumber = livery => String(cleanLivery(livery).number).padStart(2, '0');
+
+// Player teams: the real F1 grid. Picking one loads its team colours, which the player can still change.
+// Logos are not bundled: drop an image the workshop may use at public/team-logos/<id>.svg (or .png);
+// until then each team shows an original monogram badge in its colours.
+const team = (name, code, base, paint, accent, helmet, finish = 'gloss', pattern = 'classic') => ({ name, code, base, livery: { paint, accent, helmet, finish, pattern } });
+export const PLAYER_TEAMS = {
+  mclaren: team('McLaren', 'MCL', 'Woking, UK', '#ff8000', '#151921', '#ff8000', 'gloss', 'split'),
+  ferrari: team('Ferrari', 'FER', 'Maranello, Italy', '#dc0000', '#ffd400', '#ffd400'),
+  redbull: team('Red Bull Racing', 'RBR', 'Milton Keynes, UK', '#1e2a5a', '#ef3038', '#ffcc33', 'matte', 'racing'),
+  mercedes: team('Mercedes', 'MER', 'Brackley, UK', '#c3cad4', '#00d2be', '#1b1f27', 'metallic', 'split'),
+  astonmartin: team('Aston Martin', 'AMR', 'Silverstone, UK', '#00594f', '#cedc00', '#00594f', 'metallic'),
+  alpine: team('Alpine', 'ALP', 'Enstone, UK', '#0090ff', '#ff87bc', '#0090ff', 'gloss', 'split'),
+  williams: team('Williams', 'WIL', 'Grove, UK', '#005aff', '#f2f5fb', '#00a0de', 'gloss', 'racing'),
+  racingbulls: team('Racing Bulls', 'RB', 'Faenza, Italy', '#f4f2ec', '#2f4bff', '#2f4bff', 'gloss', 'racing'),
+  haas: team('Haas', 'HAA', 'Kannapolis, USA', '#f4f2ec', '#151921', '#d0021b', 'gloss', 'split'),
+  audi: team('Audi', 'AUD', 'Hinwil, Switzerland', '#9aa0a6', '#e1001a', '#1b1f27', 'metallic', 'racing'),
+  cadillac: team('Cadillac', 'CAD', 'Indiana, USA', '#1b1f27', '#f2f5fb', '#f2f5fb', 'matte', 'racing'),
+};
+export const DEFAULT_TEAM = { id: 'custom', name: 'Privateer Racing' };
+export function cleanTeam(team = {}) {
+  if (PLAYER_TEAMS[team.id]) return { id: team.id, name: PLAYER_TEAMS[team.id].name };
+  const name = String(team.name ?? '').trim().slice(0, 24);
+  return team.id === 'custom' && name ? { id: 'custom', name } : { ...DEFAULT_TEAM };
+}
+export const teamCode = team => PLAYER_TEAMS[team.id]?.code ?? (team.name.match(/\b\w/g) || ['P']).slice(0, 3).join('').toUpperCase();

@@ -7,6 +7,7 @@ import { trackById } from '../../shared/tracks.js';
 import { sampleRace } from '../../shared/race.js';
 import { PARTS, SLOT_LABELS, driverCode } from '../../shared/content.js';
 import { makeCarEffects } from './effects.js';
+import { teamLogo } from '../ui/team-logo.js';
 
 export function createWorkshop(container) {
   let renderer;
@@ -62,7 +63,7 @@ export function createWorkshop(container) {
     const dot=document.createElement('i');dot.className='fitting-dot';fittings.append(dot);
     return {slot,anchor,button,line,dot};
   });
-  let lastFrame=-100,car=null,lastBuild='',view='rover',active=null,actors=[],disposed=false,frame,armed=null,raceCamera='overview',directorFocus='you',directorUntil=0;
+  let lastFrame=-100,car=null,lastBuild='',livery=null,view='rover',active=null,actors=[],disposed=false,frame,armed=null,raceCamera='overview',directorFocus='you',directorUntil=0;
   // Broadcast direction: every incident is logged, queued for the main camera, and pinned on the minimap.
   const MIN_HOLD=4,incidentLog=new Map();let directorIncident=null,pip=null,lastMain=null;
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -75,7 +76,7 @@ export function createWorkshop(container) {
   }
   // Only a real change of view resets the camera; fitting parts keeps the player's chosen angle.
   function setView(next){const changed=next!==view;view=next;garage.visible=next==='rover';circuit.group.visible=next==='course';labelLayer.hidden=next!=='course';fittings.hidden=next!=='rover';landmarkLayer.hidden=next!=='course';map.hidden=next!=='course';if(changed)resetCamera();}
-  function setBuild(build){if(JSON.stringify(build)===lastBuild)return;lastBuild=JSON.stringify(build);if(car)disposeGroup(car);car=makeRaceCar(build);car.position.y=.14;garage.add(car);renderer.shadowMap.needsUpdate=true;}
+  function setBuild(build,nextLivery=null){const key=JSON.stringify([build,nextLivery]);if(key===lastBuild)return;lastBuild=key;livery=nextLivery;if(car)disposeGroup(car);car=makeRaceCar(build,livery||undefined);car.position.y=.14;garage.add(car);renderer.shadowMap.needsUpdate=true;}
   function setAssembly(state,part){
     for(const item of fittingButtons){item.button.querySelector('strong').textContent=PARTS[state.build[item.slot]].name;item.button.disabled=!['practice','adjust'].includes(state.phase)||(item.slot==='sensor'&&state.sensorLocked);}
     setArmedPart(part);
@@ -90,12 +91,13 @@ export function createWorkshop(container) {
   function animateRun(entries,duration,done,onProgress,options={}){
     clearRunners();
     actors=entries.map((entry,index)=>{
-      const mesh=makeRaceCar(entry.build,entry.color,entry.id==='you'?'07':String(11+index));mesh.scale.setScalar(options.demo ? .32 : entries.length>1 ? .26 : .28);runners.add(mesh);
+      const mesh=makeRaceCar(entry.build,entry.id==='you'&&livery?livery:entry.color,entry.id==='you'?'07':String(11+index));mesh.scale.setScalar(options.demo ? .32 : entries.length>1 ? .26 : .28);runners.add(mesh);
       const effects=makeCarEffects(mesh);
       const label=document.createElement('div');label.className=`driver-label ${entry.id==='you'?'is-you':''}`;label.dataset.driver=entry.id||'you';label.style.setProperty('--team-color',entry.color||'#ff3b38');
       const position=document.createElement('b');position.textContent=`P${entry.grid||index+1}`;
       const name=document.createElement('span');name.textContent=entry.name||'You';label.title=entry.name||'You';
       const code=document.createElement('i');code.className='code';code.textContent=driverCode(entry);label.append(position,code,name);
+      if(entry.id==='you'&&livery?.team)position.insertAdjacentHTML('afterend',teamLogo(livery.team,livery,'label-logo'));
       if(entry.id==='you'){const tag=document.createElement('em');tag.textContent=options.demo&&!options.practice?'DEMO':'YOU';label.append(tag);}
       labelLayer.append(label);
       const popup=document.createElement('div');popup.className='incident-pop';popup.hidden=true;labelLayer.append(popup);

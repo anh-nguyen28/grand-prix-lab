@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('Test car plays one solo simulation with its incidents live, and it can be watched again', async ({ page }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.stack));
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('button',{name:'Drive to the garage'}).click();
   await page.getByRole('button', { name: /Tracks/ }).click();
   await page.locator('.season-card[data-track="mountain"]').click();
   await page.getByRole('button', { name: /Test car/ }).click();
@@ -25,7 +25,7 @@ test('Test car plays one solo simulation with its incidents live, and it can be 
 });
 
 test('the race risks list offers Fix it only: the Test car lap is the one place to watch problems', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('button',{name:'Drive to the garage'}).click();
   await page.getByRole('button', { name: /Test car/ }).click();
   await page.getByRole('button', { name: 'Continue without bonus' }).click();
   await page.getByRole('button', { name: 'Skip animation' }).click();
