@@ -1,8 +1,9 @@
-export const BUDGET = 75;
+import { PART_STATS } from './part-stats.js';
+export const BUDGET = 90;
 export const PRACTICE_RUNS = 2;
 export const MAX_CHANGED_SLOTS = 2;
-export const SLOTS = ['wheels', 'power', 'body', 'sensor'];
-export const SLOT_LABELS = { wheels: 'Tyres', power: 'Power', body: 'Aero', sensor: 'Sensor' };
+export const SLOTS = ['wheels', 'power', 'body', 'chassis', 'sensor'];
+export const SLOT_LABELS = { wheels: 'Tyres', power: 'Power', body: 'Aero', chassis: 'Chassis', sensor: 'Sensor' };
 export const SECTORS = ['straight', 'loose', 'technical'];
 
 // pace: seconds gained (negative) or lost (positive) per lap in each sector,
@@ -16,6 +17,9 @@ export const PARTS = {
   offroad: { id: 'offroad', slot: 'wheels', name: 'Grooved tyres', cost: 18, pace: { straight: .05, loose: -.22, technical: 0 }, wear: .008, description: 'Deep tread keeps you moving on loose ground.', trait: 'Grip on sand + rock', color: '#364841' },
   tracks: { id: 'tracks', slot: 'wheels', name: 'Endurance tyres', cost: 24, pace: { straight: .14, loose: -.26, technical: -.06 }, wear: .002, launch: .5, description: 'A durable compound for grip through the long run.', trait: 'Long-run grip', color: '#454c44' },
   paddle: { id: 'paddle', slot: 'wheels', name: 'Sand paddles', cost: 22, pace: { straight: .24, loose: -.42, technical: .04 }, wear: .004, description: 'Paddle fins scoop through loose sand. Slow on tarmac.', trait: 'Sand specialist', color: '#4a3a2a' },
+  hard: { id: 'hard', slot: 'wheels', name: 'Hard tyres', cost: 20, pace: { straight: .08, loose: 0, technical: .05 }, wear: .003, description: 'A tough compound that shrugs off grit and heat. Slow to warm up.', trait: 'Grit and heat', color: '#4b5058' },
+  inter: { id: 'inter', slot: 'wheels', name: 'Intermediate tyres', cost: 18, pace: { straight: .1, loose: 0, technical: .04 }, wear: .02, description: 'Shallow tread for damp tarmac. Overheats when it is hot.', trait: 'Damp specialist', color: '#3d5a55' },
+  wet: { id: 'wet', slot: 'wheels', name: 'Wet tyres', cost: 20, pace: { straight: .22, loose: 0, technical: .1 }, wear: .025, description: 'Deep tread clears standing water. Slow and fragile on a dry track.', trait: 'Rain specialist', color: '#2f5f8f' },
   solar: { id: 'solar', slot: 'power', name: 'Efficiency unit', cost: 12, pace: { straight: .22, loose: .04, technical: -.07 }, description: 'A lighter power unit. Less power, less weight.', trait: 'Lightweight choice', color: '#527a8c' },
   battery: { id: 'battery', slot: 'power', name: 'Twin-battery hybrid', cost: 16, pace: { straight: .1, loose: .02, technical: -.03 }, description: 'Two battery packs: light, cool-running and steady.', trait: 'Cool and steady', color: '#2f5f8f' },
   electric: { id: 'electric', slot: 'power', name: 'Balanced hybrid', cost: 20, pace: { straight: 0, loose: 0, technical: 0 }, description: 'A balanced power unit for consistent sector times.', trait: 'Balanced power', color: '#e99355' },
@@ -27,13 +31,18 @@ export const PARTS = {
   carbon: { id: 'carbon', slot: 'body', name: 'High-downforce aero', cost: 26, pace: { straight: .2, loose: -.04, technical: -.42 }, description: 'More cornering grip, with more drag on the straight.', trait: 'Cornering specialist', color: '#536963' },
   drs: { id: 'drs', slot: 'body', name: 'Active DRS wing', cost: 22, pace: { straight: -.1, loose: 0, technical: -.1 }, description: 'A wing that opens on the straight and closes for corners.', trait: 'All-rounder', color: '#2f6f7a' },
   floor: { id: 'floor', slot: 'body', name: 'Ground-effect floor', cost: 20, pace: { straight: -.04, loose: .16, technical: -.28 }, description: 'Sucks the car to smooth tarmac. Unsettled on loose ground.', trait: 'Corner grip from the floor', color: '#3c4a5a' },
+  stiff: { id: 'stiff', slot: 'chassis', name: 'Stiff aluminium', cost: 8, pace: { straight: 0, loose: 0, technical: 0 }, description: 'Cheap and light, but stiff suspension rattles over bumps.', trait: 'Light and cheap', color: '#aab3bf' },
+  sprung: { id: 'sprung', slot: 'chassis', name: 'Soft-sprung steel', cost: 14, pace: { straight: .1, loose: 0, technical: .04 }, description: 'Heavy, but soft springs soak up bumps.', trait: 'Bump soaker', color: '#6e7683' },
+  titanium: { id: 'titanium', slot: 'chassis', name: 'Titanium adaptive', cost: 22, pace: { straight: .03, loose: 0, technical: -.02 }, description: 'Adaptive dampers and a strong, light frame.', trait: 'Adaptive ride', color: '#8fa0b6' },
+  monocoque: { id: 'monocoque', slot: 'chassis', name: 'Carbon monocoque', cost: 26, pace: { straight: -.08, loose: 0, technical: -.06 }, description: 'The lightest, stiffest tub. Expensive.', trait: 'Lightest frame', color: '#20252e' },
   camera: { id: 'camera', slot: 'sensor', name: 'Field camera', cost: 4, description: 'Read the surface through visual observations.', trait: 'Visual clues', color: '#343e3b' },
   thermal: { id: 'thermal', slot: 'sensor', name: 'Thermal scanner', cost: 8, description: 'Explore heat and moisture on the course.', trait: 'Heat + moisture clues', color: '#df815a' },
   lidar: { id: 'lidar', slot: 'sensor', name: 'Lidar scanner', cost: 10, description: 'Laser points map the exact shape of the surface.', trait: 'Shape + texture clues', color: '#2f6f7a' },
   radar: { id: 'radar', slot: 'sensor', name: 'Ground radar', cost: 12, description: 'Look beneath the surface for structural clues.', trait: 'Surface structure clues', color: '#8b9a89' },
 };
+for (const [id, stats] of Object.entries(PART_STATS)) PARTS[id].stats = stats;
 
-export const DEFAULT_BUILD = { wheels: 'road', power: 'electric', body: 'alloy', sensor: 'camera' };
+export const DEFAULT_BUILD = { wheels: 'road', power: 'electric', body: 'alloy', chassis: 'stiff', sensor: 'camera' };
 export const COURSE = {
   id: 'dune', title: 'Dune Valley', number: '01', subtitle: 'A little evidence goes a long way.',
   description: 'A sun-baked test course with one unknown stretch. Read the clues, set up your car, and find a way through.',
@@ -67,7 +76,7 @@ export const BOOST_SECONDS = 6;
 export const BOOST_GAIN = 0.18;
 export const BOOST_COOLDOWN = 8;
 
-const rival = (id, name, team, color, wheels, power, body, sensor = 'camera') => ({ id, name, team, color, build: { wheels, power, body, sensor } });
+const rival = (id, name, team, color, wheels, power, body, sensor = 'camera', chassis = 'stiff') => ({ id, name, team, color, build: { wheels, power, body, chassis, sensor } });
 // A workshop-sized field: five named archetypes first, then a realistic spread of student builds.
 export const DEMO_TEAMS = [
   rival('moss', 'Alex Chen', 'Moss Racing', '#36ddab', 'offroad', 'solar', 'alloy'),

@@ -26,24 +26,24 @@ test('parts refund their cost and every accepted build is complete and within bu
   let state = createGame();
   for (let i = 0; i < 5; i++) for (const part of Object.values(PARTS)) {
     const result = transition(state, { type: 'SET_PART', id: part.id });
-    if (result.ok) { state = result.state; assert.ok(buildStats(state.build).cost <= BUDGET); assert.equal(Object.keys(state.build).length, 4); }
+    if (result.ok) { state = result.state; assert.ok(buildStats(state.build).cost <= BUDGET); assert.equal(Object.keys(state.build).length, 5); }
   }
   state = createGame();
   state = act(state, { type: 'SET_PART', id: 'tracks' });
   state = act(state, { type: 'SET_PART', id: 'carbon' });
-  assert.equal(buildStats(state.build).cost, 74);
-  const blocked = transition(state, { type: 'SET_PART', id: 'torque' });
+  assert.equal(buildStats(state.build).cost, 82);
+  const blocked = transition(state, { type: 'SET_PART', id: 'monocoque' });
   assert.equal(blocked.ok, false);
   assert.match(blocked.message, new RegExp(`${BUDGET} credits`));
-  assert.equal(transition(state, { type: 'SET_PART', id: 'thermal' }).ok, false);
+  assert.equal(transition(state, { type: 'SET_PART', id: 'torque' }).ok, true);
   state = act(state, { type: 'SET_PART', id: 'road' });
-  assert.equal(buildStats(state.build).cost, 60);
+  assert.equal(buildStats(state.build).cost, 68);
 });
 
 test('a new round can start from the previous car, but never from an invalid one', () => {
-  const kept = { wheels: 'offroad', power: 'electric', body: 'carbon', sensor: 'thermal' };
+  const kept = { wheels: 'offroad', power: 'electric', body: 'carbon', chassis: 'stiff', sensor: 'thermal' };
   assert.deepEqual(createGame(undefined, kept).build, kept);
-  assert.deepEqual(createGame(undefined, { ...kept, sensor: 'radar' }).build, DEFAULT_BUILD);
+  assert.deepEqual(createGame(undefined, { ...kept, chassis: 'monocoque', sensor: 'radar' }).build, DEFAULT_BUILD);
   assert.deepEqual(createGame(undefined, { ...kept, power: 'radar' }).build, DEFAULT_BUILD);
   assert.equal(createGame(undefined, kept).runs.length, 0);
 });

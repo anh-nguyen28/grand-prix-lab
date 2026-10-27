@@ -34,7 +34,7 @@ test('incidents happen at their track location and carry their cost into the res
 const ids=slot=>Object.values(PARTS).filter(part=>part.slot===slot&&part.id!=='sprint').map(part=>part.id);
 test('every non-sprint setup combination has finite monotonic progress and finishes',()=>{
   for(const wheels of ids('wheels'))for(const power of ids('power'))for(const body of ids('body')){
-    const build={wheels,power,body,sensor:'camera'},race=createRace([{id:'you',name:'Test',build}],build);let distance=0;
+    const build={wheels,power,body,chassis:'stiff',sensor:'camera'},race=createRace([{id:'you',name:'Test',build}],build);let distance=0;
     assert.ok(race.field[0].timeline.every(piece=>piece.duration>0));
     assert.ok(race.field[0].incidents.every(event=>event.type!=='fire'));
     for(let elapsed=0;elapsed<race.maxTime+2;elapsed+=.5){const row=sampleRace(race,elapsed)[0];assert.ok(Number.isFinite(row.distance)&&row.distance>=distance);distance=row.distance;}
