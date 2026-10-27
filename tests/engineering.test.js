@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_BUILD, DEMO_TEAMS, PARTS } from '../shared/content.js';
-import { buildIncidents, INCIDENTS, planIncidents, raceRiskForecast, setupRisks } from '../shared/engineering.js';
+import { buildIncidents, INCIDENTS, planIncidents, raceRiskForecast, sectionReport, setupRisks, specSheet } from '../shared/engineering.js';
+import { BUDGET } from '../shared/content.js';
+import { buildStats } from '../shared/simulation.js';
 import { TRACKS, trackById } from '../shared/tracks.js';
 import { addPlayerBoost, createIncidentDemo, createRace, finishRace, sampleRace } from '../shared/race.js';
 
@@ -87,4 +89,22 @@ test('inadequate sprint cooling escalates into fire and a stable retirement',()=
   const during=sampleRace(race,entry.startDelay+(entry.retirement.start+entry.retirement.end)/2).find(car=>car.id==='you');assert.equal(during.incident.type,'fire');
   const after=sampleRace(race,race.maxTime+1).find(car=>car.id==='you');assert.equal(after.retired,true);assert.equal(after.finished,false);assert.equal(after.distance,entry.retirement.to);assert.equal(after.lap,5);
   assert.equal(finishRace(race).find(car=>car.id==='you').result.time,null);assert.equal(addPlayerBoost(race,entry.startDelay+entry.retirement.end+.1).ok,false);
+});
+
+test('the section report names the weak stat and single-part swaps that help', () => {
+  const quarry = trackById('quarry'), car = build({ chassis: 'stiff', body: 'floor' });
+  const report = sectionReport(car, quarry);
+  assert.equal(report.length, quarry.sections.length);
+  const kerbs = report.find(item => item.section.id === 'kerbs');
+  assert.notEqual(kerbs.outcome.kind, 'clean');
+  assert.equal(kerbs.weakStat, 'stability');
+  assert.ok(kerbs.advice.length > 0 && kerbs.advice[0].gain > 0);
+  assert.ok(kerbs.advice.every(item => buildStats({ ...car, [item.slot]: item.id }).cost <= BUDGET));
+  assert.ok(report.filter(item => item.outcome.kind === 'clean').every(item => item.advice.length === 0));
+});
+
+test('the spec sheet shows wet grip and stability from the same stats', () => {
+  const labels = specSheet(DEFAULT_BUILD).map(item => item.label);
+  assert.deepEqual(labels, ['Top speed', 'Cornering', 'Wet grip', 'Cooling', 'Tyre life', 'Stability']);
+  assert.ok(specSheet(build({ wheels: 'wet' })).find(item => item.id === 'wet').value > specSheet(build({ wheels: 'road' })).find(item => item.id === 'wet').value);
 });

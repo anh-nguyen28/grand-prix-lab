@@ -6,6 +6,7 @@ import { buildStats } from '../../shared/simulation.js';
 import { METAPHOR, NARRATOR, storyChapters } from '../../shared/story.js';
 import { CONDITIONS } from '../../shared/conditions.js';
 import { trackById } from '../../shared/tracks.js';
+import { renderSectionForecast, renderTrackStrip } from './track-ui.js';
 import { escapeHtml as e, icon, slotIcon } from './icons.js';
 import { renderTimingTower, renderRaceActions } from './race-ui.js';
 import { renderPartShelf } from './engineering-ui.js';
@@ -71,15 +72,15 @@ function chapterBody(chapter, state, ui) {
     case 'data': return sensorReadings(state, ui);
     // The readings stay in view while the player decides on a label.
     case 'label': return sensorReadings(state, ui) + (state.phase === 'practice' || state.prediction ? prediction(state, ui) : '');
-    case 'train': return state.runs.length ? renderRunReport(state.runs.at(-1), state.runs.at(-2), `PRACTICE RUN 0${state.runs.length}`) + renderRisks(state) : `<ul class="track-tests">${trackById(state.trackId).sections.map(section => `<li><strong>${e(section.name)}</strong><span>${CONDITIONS[section.condition].label}: ${e(section.suggestion)}</span></li>`).join('')}</ul>`;
-    case 'exam': return state.qualifying ? renderRunReport(state.qualifying, state.runs.at(-1), 'QUALIFYING REPORT') + renderRisks(state) : '';
+    case 'train': return state.runs.length ? renderTrackStrip(state) + renderRunReport(state.runs.at(-1), state.runs.at(-2), `PRACTICE RUN 0${state.runs.length}`) + renderSectionForecast(state) + renderRisks(state) : `<ul class="track-tests">${trackById(state.trackId).sections.map(section => `<li><strong>${e(section.name)}</strong><span>${CONDITIONS[section.condition].label}: ${e(section.suggestion)}</span></li>`).join('')}</ul>`;
+    case 'exam': return state.qualifying ? renderTrackStrip(state) + renderRunReport(state.qualifying, state.runs.at(-1), 'QUALIFYING REPORT') + renderSectionForecast(state) + renderRisks(state) : '';
   }
   return '';
 }
 
 // A short test lap cannot show late-race problems, so the report forecasts them from the fitted parts.
 function renderRisks(state) {
-  const risks = raceRiskForecast(state.build);
+  const risks = raceRiskForecast(state.build, trackById(state.trackId));
   if (!risks.length) return `<div class="race-risks clean"><span class="eyebrow">RACE RISKS FOUND</span><p>${icon('check')} None. This car should run clean for eight laps. Now it is about pace.</p></div>`;
   return `<div class="race-risks"><span class="eyebrow">RACE RISKS FOUND · ${risks.length}</span>${risks.map(risk => `<div class="risk"><div><strong>${risk.title}</strong><small>${risk.retirement ? `Retires on lap ${risk.laps.at(-1)}` : `Lap ${risk.laps.join(' & ')} · costs ${risk.loss.toFixed(1)}s`}</small></div><button class="button small light" data-action="incident-demo" data-type="${risk.type}">${icon('play')} Watch</button><button class="button small primary" data-action="fix-risk" data-type="${risk.type}" ${['practice', 'adjust'].includes(state.phase) ? '' : 'disabled'}>Fix it</button></div>`).join('')}</div>`;
 }
@@ -134,7 +135,7 @@ function renderResults(state) {
   return `<div class="eyebrow">CHEQUERED FLAG / ${RACE_LAPS} LAPS</div><div class="finish-place"><span>${you.retired?'OUT':String(you.place).padStart(2, '0')}</span><div><strong>${you.retired?'Retired':`P${you.place} of ${state.field.length}`}</strong><p>${you.retired?'Brake fire · did not finish':`${you.result.time.toFixed(2)} seconds`}</p></div></div>
     <div class="podium">${[2, 1, 3].map(place => finisher(place)).map((entry, i) => entry ? `<div class="step-${[2, 1, 3][i]} ${entry.id === 'you' ? 'is-you' : ''}"><i style="background:${entry.color}"></i><strong>${driverCode(entry)}</strong><span>P${[2, 1, 3][i]}</span></div>` : '').join('')}</div>
     <div class="score-breakdown"><div><span>Race finish</span><strong>+${state.score.race}</strong></div><div><span>Surface label bonus</span><strong>+${state.score.prediction}</strong></div><div class="score-total"><span>Round points</span><strong>${state.score.total}<small> PTS</small></strong></div></div>
-    <div class="race-debrief"><span class="eyebrow">YOUR INCIDENT REEL</span>${mine.length ? mine.map(item => { const fixes = incidentFixes(state.build, item.event.type).slice(0, 2); return `<div class="reel-item"><div><strong>Lap ${item.event.lap} · ${item.event.title}</strong><span>${item.impact.retired ? 'RETIRED' : `+${item.event.loss.toFixed(1)}s · P${item.impact.before} → P${item.impact.after}`}</span></div><p>${fixes.length ? `Next time: ${fixes.map(fix => `${fix.name} (${fix.cost > 0 ? '+' : ''}${fix.cost} cr)`).join(' or ')}.` : item.event.remedy}</p>${replayButton(item)}</div>`; }).join('') : '<p>A clean race. Your setup avoided every handling and cooling incident.</p>'}</div>
+    <div class="race-debrief"><span class="eyebrow">YOUR INCIDENT REEL</span>${mine.length ? mine.map(item => { const fixes = incidentFixes(state.build, item.event.type, trackById(state.trackId)).slice(0, 2); return `<div class="reel-item"><div><strong>Lap ${item.event.lap} · ${item.event.title}</strong><span>${item.impact.retired ? 'RETIRED' : `+${item.event.loss.toFixed(1)}s · P${item.impact.before} → P${item.impact.after}`}</span></div><p>${fixes.length ? `Next time: ${fixes.map(fix => `${fix.name} (${fix.cost > 0 ? '+' : ''}${fix.cost} cr)`).join(' or ')}.` : item.event.remedy}</p>${replayButton(item)}</div>`; }).join('') : '<p>A clean race. Your setup avoided every handling and cooling incident.</p>'}</div>
     ${others.length ? `<div class="race-debrief field-reel"><span class="eyebrow">LEARN FROM THE FIELD</span>${others.map(item => `<div class="reel-item"><div><strong>${e(item.car.name)} · ${item.event.title}</strong><span>${item.impact.retired ? 'RETIRED' : `P${item.impact.before} → P${item.impact.after}`}</span></div><p>${item.event.cause}</p>${replayButton(item)}</div>`).join('')}</div>` : ''}
     <details class="full-classification"><summary>Full classification · ${state.field.length} cars</summary><div class="standings">${state.field.map(entry => `<div class="${entry.id === 'you' ? 'is-you' : ''}"><span>${entry.place}</span><i style="background:${entry.color}"></i><strong>${e(entry.name)}${entry.id === 'you' ? '<small> YOU</small>' : ''}</strong><span>${entry.retired?'RETIRED':`${entry.result.time.toFixed(2)}s`}</span></div>`).join('')}</div></details>`;
 }

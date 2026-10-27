@@ -1,6 +1,7 @@
 import { BUDGET, PARTS, SLOT_LABELS, SLOTS } from '../../shared/content.js';
 import { ENGINEERING, INCIDENTS, setupRisks, specSheet } from '../../shared/engineering.js';
 import { buildStats } from '../../shared/simulation.js';
+import { trackById } from '../../shared/tracks.js';
 import { changedSlots } from '../../shared/game.js';
 import { escapeHtml as e, icon } from './icons.js';
 import { partArt } from './part-art.js';
@@ -24,7 +25,7 @@ let shownSpecs = null;
 const tone = value => value >= 70 ? 'good' : value >= 40 ? 'average' : 'low';
 const verdict = value => value >= 70 ? 'Strong' : value >= 40 ? 'Average' : 'Weak';
 export function renderEngineering(state) {
-  const risks=setupRisks(state.build), stats=buildStats(state.build), specs=specSheet(state.build), previous=shownSpecs;
+  const risks=setupRisks(state.build,trackById(state.trackId)), stats=buildStats(state.build), specs=specSheet(state.build), previous=shownSpecs;
   shownSpecs=Object.fromEntries(specs.map(spec=>[spec.id,spec.value]));
   return `<div class="engineering-header"><span class="eyebrow">CAR STATS</span><button data-action="incident-lab">Preview failures ${icon('arrow')}</button></div><h2 class="stats-title">How your car will race</h2><div class="spec-sheet">${specs.map(spec=>{
     const before=previous?.[spec.id]??spec.value, delta=spec.value-before;

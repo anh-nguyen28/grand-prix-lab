@@ -1,5 +1,5 @@
 import { BUDGET, PARTS, RACE_LAPS, SLOTS } from './content.js';
-import { buildProfile, sectionOutcome } from './conditions.js';
+import { buildProfile, sectionOutcome, sectionScore } from './conditions.js';
 import { DEFAULT_TRACK } from './tracks.js';
 import { buildStats, sectorPace } from './simulation.js';
 // Educational setup model. Ratings and event timings are game values, not F1 specifications.
@@ -54,13 +54,14 @@ export function engineeringStats(build) {
 const clamp = value => Math.round(Math.max(5, Math.min(100, value)));
 // The spec sheet is read directly from the same pace data that times the race.
 export function specSheet(build) {
-  const stats = engineeringStats(build);
+  const profile = buildProfile(build);
   return [
-    { id: 'straight', label: 'Top speed', value: clamp(50 - sectorPace(build, 'straight') * 45) },
-    { id: 'technical', label: 'Cornering', value: clamp(50 - sectorPace(build, 'technical') * 90) },
-    { id: 'loose', label: 'Loose grip', value: clamp(50 - sectorPace(build, 'loose') * 120) },
-    { id: 'cooling', label: 'Cooling', value: stats.cooling },
-    { id: 'endurance', label: 'Tyre life', value: stats.endurance },
+    { id: 'straight', label: 'Top speed', value: clamp(profile.topSpeed) },
+    { id: 'technical', label: 'Cornering', value: clamp(.5 * profile.dryGrip + .5 * profile.downforce) },
+    { id: 'wet', label: 'Wet grip', value: clamp(profile.wetGrip) },
+    { id: 'cooling', label: 'Cooling', value: clamp(profile.cooling) },
+    { id: 'endurance', label: 'Tyre life', value: clamp(.5 * profile.abrasion + .5 * profile.heatTol) },
+    { id: 'stability', label: 'Stability', value: clamp(profile.stability) },
   ];
 }
 const round1 = value => Math.round(value * 10) / 10;
@@ -116,4 +117,19 @@ export function incidentFixes(build, type, track = DEFAULT_TRACK) {
     const next = { ...build, [slot]: part.id };
     return buildStats(next).cost <= BUDGET && !buildIncidents(next, track).some(event => event.type === type);
   }).map(part => ({ slot, id: part.id, name: part.name, cost: part.cost - PARTS[build[slot]].cost })));
+}
+
+// For each section: the outcome at lap 1, the stat furthest below what the section needs, and the best
+// single-part swaps (by score gain) that fit the budget.
+export function sectionReport(build, track = DEFAULT_TRACK) {
+  const profile = buildProfile(build);
+  return track.sections.map(section => {
+    const outcome = sectionOutcome(profile, section, 1);
+    const weakStat = Object.keys(section.demand).sort((a, b) => profile[a] - profile[b])[0];
+    const advice = outcome.kind === 'clean' ? [] : SLOTS.flatMap(slot => Object.values(PARTS).filter(part => part.slot === slot && part.id !== build[slot]).map(part => {
+      const next = { ...build, [slot]: part.id };
+      return { slot, id: part.id, name: part.name, cost: part.cost - PARTS[build[slot]].cost, total: buildStats(next).cost, gain: round1(sectionScore(buildProfile(next), section, 1) - outcome.score) };
+    })).filter(item => item.total <= BUDGET && item.gain > 0).sort((a, b) => b.gain - a.gain).slice(0, 3);
+    return { section, condition: section.condition, outcome, weakStat, advice };
+  });
 }

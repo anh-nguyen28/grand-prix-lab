@@ -92,3 +92,13 @@
 }
 .terrain-dot.dry{background:#c9c2a4}.terrain-dot.abrasive{background:#a98262}.terrain-dot.damp{background:#5b8aa8}.terrain-dot.cold{background:#9ec4e0}.terrain-dot.bumpy{background:#b5835a}.terrain-dot.hot{background:#e0734a}.terrain-dot.rain{background:#4f8dff}
 .season-card.selected{outline:2px solid var(--orange)}.season-card[disabled]{opacity:.55;cursor:default}
+.track-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px}
+.track-chip{padding:10px;border:1px solid #2d3c52;border-radius:5px;background:#111d2b}
+.track-chip small{display:block;color:#93a4bb;font-size:10px;margin-top:4px}
+.track-chip.is-clean{border-color:#2f7a5a}.track-chip.is-slow{border-color:#a98a2f}.track-chip.is-incident{border-color:#b8693a}.track-chip.is-crash,.track-chip.is-fire{border-color:#d4433f}
+.section-forecast{margin:12px 0}
+.forecast-row{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:10px 0;border-top:1px solid #2d3c52;align-items:center}
+.forecast-row small{display:block;color:#93a4bb;font-size:10px}
+.forecast-row p{grid-column:1/-1;margin:0;font-size:11px;color:#b2c3db}
+.forecast-row.is-crash .pill,.forecast-row.is-fire .pill{background:#d4433f;color:#fff}
+.forecast-row strong{font-size:12px;font-weight:600}

@@ -57,7 +57,7 @@ function render() {
   const focusKey = focused?.dataset?.action ? { action: focused.dataset.action, id: focused.dataset.id, category: focused.dataset.category, tab: focused.dataset.tab, terrain: focused.dataset.terrain } : null;
   if(state.phase!=='race'||!document.querySelector('#live-standings'))document.querySelector('#parts-panel').innerHTML = renderParts(state, ui);
   // Rebuild the stats only when the car changes, so the bars get to finish their animation.
-  const statsKey = JSON.stringify(state.build);
+  const statsKey = JSON.stringify([state.build, state.trackId]);
   if (statsKey !== ui.statsKey) { ui.statsKey = statsKey; const panel = document.querySelector('#engineering-panel'); panel.innerHTML = renderEngineering(state); animateSpecs(panel); }
   // When the story moves to a new chapter, show it; the player can still click back to earlier ones.
   const current = storyChapters(state).find(chapter => chapter.status === 'current')?.id ?? null;
@@ -247,7 +247,7 @@ document.addEventListener('click', async event => {
     case 'rebuild': reset(session.getSnapshot().build); showToast('Same car, fresh round. Apply what the race taught you.'); break;
     case 'replay': startReplay(button.dataset.driverId, button.dataset.distance); break;
     case 'fix-risk': {
-      const fixes = incidentFixes(session.getSnapshot().build, button.dataset.type);
+      const fixes = incidentFixes(session.getSnapshot().build, button.dataset.type, trackById(session.getSnapshot().trackId));
       if (!fixes.length) { showToast('No single affordable swap removes this risk. Try changing two parts.'); break; }
       ui.category = fixes[0].slot; ui.suggested = new Set(fixes.map(fix => fix.id)); render();
       document.querySelector('.parts-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
