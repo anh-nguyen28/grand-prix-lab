@@ -90,3 +90,5 @@
   .chapter-title strong{font-size:14px}
   .metaphor>div,.track-tests span,.story-recap li{font-size:12px}
 }
+.terrain-dot.dry{background:#c9c2a4}.terrain-dot.abrasive{background:#a98262}.terrain-dot.damp{background:#5b8aa8}.terrain-dot.cold{background:#9ec4e0}.terrain-dot.bumpy{background:#b5835a}.terrain-dot.hot{background:#e0734a}.terrain-dot.rain{background:#4f8dff}
+.season-card.selected{outline:2px solid var(--orange)}.season-card[disabled]{opacity:.55;cursor:default}

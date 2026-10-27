@@ -1,4 +1,6 @@
 import { DEFAULT_BUILD, PARTS, SLOTS } from './content.js';
+import { CONDITIONS } from './conditions.js';
+import { trackById } from './tracks.js';
 
 // Field notes: Rae, the race engineer, tells the round as the story of teaching an AI.
 // The round's lesson (classification) is only named in the epilogue, after the race.
@@ -37,13 +39,15 @@ const capital = word => word.charAt(0).toUpperCase() + word.slice(1);
 
 function lines(id, state) {
   const sensor = PARTS[state.build.sensor].name.toLowerCase();
+  const track = trackById(state.trackId), mystery = track.mystery, section = track.sections.find(item => item.id === mystery.section).name;
+  const labelOf = condition => CONDITIONS[condition]?.label ?? capital(condition);
   switch (id) {
     case 'meet': return [
       'Here is the thing nobody tells you about this car: it cannot see the track.',
-      'It will drive itself through Dune Valley, a place it has never been. Everything it knows, it learns from you. In other words, you are about to teach an AI.',
+      `It will drive itself through ${track.title}, a place it has never been. Everything it knows, it learns from you. In other words, you are about to teach an AI.`,
     ];
     case 'data': return state.clues.length === 0 ? [
-      `One stretch of the course is a mystery. Your ${sensor} can take three readings of it.`,
+      `One stretch of ${track.title} is a mystery: the ${section.toLowerCase()}. Your ${sensor} can take three readings of it.`,
       'Those readings are data: the only evidence a model ever gets about the world. A better sensor costs credits your car could use. Data is never free.',
     ] : state.clues.length < 3 ? [
       `${state.clues.length} of 3 readings in. Do not decide yet. One clue can mislead you; patterns are harder to fool.`,
@@ -52,11 +56,11 @@ function lines(id, state) {
     ];
     case 'label':
       if (state.predictionLocked) return state.prediction
-        ? [`You labelled the mystery stretch “${capital(state.prediction)}”. We find out after the race whether the label was right.`]
+        ? [`You labelled the ${section.toLowerCase()} “${labelOf(state.prediction)}”. We find out after the race whether the label was right.`]
         : ['You sent the car out without a label. It will have to learn the hard way. You can still earn every race point.'];
       return [
-        'Your car cannot race on “unknown”. Look at the readings and give the stretch a label: road, sand or rock.',
-        'A correct label earns 3 bonus points. It does not change the car; your tyres decide the grip.',
+        `Your car cannot race on “unknown”. Look at the readings and give the ${section.toLowerCase()} a label: ${mystery.options.map(labelOf).join(', ').replace(/, ([^,]*)$/, ' or $1').toLowerCase()}.`,
+        'A correct label earns 3 bonus points. It does not change the car; your parts decide how it copes.',
       ];
     case 'train': {
       const last = state.runs.at(-1), first = state.runs[0];

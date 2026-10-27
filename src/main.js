@@ -23,7 +23,8 @@ import { INCIDENTS, incidentFixes } from '../shared/engineering.js';
 import { createLocalSession } from './adapters/local-session.js';
 import { createWorkshop } from './scene/workshop.js';
 import { renderShell, renderParts, renderIntel, renderActions, renderSteps } from './ui/render.js';
-import { briefingDialog, helpDialog, predictionWarningDialog, profileDialog, roundConceptDialog, seasonDialog } from './ui/dialogs.js';
+import { briefingDialog, helpDialog, predictionWarningDialog, profileDialog, tracksDialog } from './ui/dialogs.js';
+import { TRACKS, trackById } from '../shared/tracks.js';
 import { icon } from './ui/icons.js';
 import { sendPlayerMessage } from './ui/race-chat.js';
 import { storyChapters } from '../shared/story.js';
@@ -66,6 +67,10 @@ function render() {
   document.querySelector('#action-bar').innerHTML = renderActions(state, ui);
   document.querySelector('#steps').innerHTML = renderSteps(state);
   document.querySelector('#profile-label').textContent = state.profile.name;
+  const track = trackById(state.trackId);
+  document.querySelector('#round-title').textContent = track.title;
+  document.querySelector('#round-number').textContent = `GRAND PRIX ${track.number} / 0${TRACKS.length}`;
+  document.querySelector('#round-icon').innerHTML = icon(track.icon);
   const copy = ui.demo ? ['THE INCIDENT LAB', INCIDENTS[ui.demo].title, 'A controlled demonstration. Your setup, tests and score are unchanged.'] : state.phase === 'results'
     ? ['THE REVEAL', 'Every run teaches you something.', 'The finish line is only half the story. Here’s what your car discovered.']
     : state.phase === 'adjust'
@@ -74,7 +79,7 @@ function render() {
         ? ['THE GRAND PRIX', 'Let your build do the talking.', 'Eight laps. A full grid. Watch your engineering come alive.']
         : ['THE PADDOCK', 'Your race starts in the garage.', 'Read the circuit. Dial in your setup. Earn your place on the grid.'];
   ['eyebrow', 'heading', 'subheading'].forEach((id, i) => { document.getElementById(id).textContent = copy[i]; });
-  document.querySelector('#rover-title').innerHTML = `CAR 07 <span>/ ${state.phase === 'practice' ? 'PERFORMANCE LAB' : state.phase === 'adjust' ? 'THE FINAL TUNE-UP' : 'DUNE VALLEY'}</span>`;
+  document.querySelector('#rover-title').innerHTML = `CAR 07 <span>/ ${state.phase === 'practice' ? 'PERFORMANCE LAB' : state.phase === 'adjust' ? 'THE FINAL TUNE-UP' : track.title.toUpperCase()}</span>`;
   document.querySelector('.workspace').classList.toggle('show-results', state.phase === 'results');
   document.querySelector('.workspace').classList.toggle('race-mode', state.phase === 'race' || !!ui.demo);
   document.body.classList.toggle('race-active', state.phase === 'race' || !!ui.demo);
@@ -150,7 +155,7 @@ function startIncidentDemo(type){
   if(ui.busy||ui.scanning||!INCIDENTS[type])return;
   closeDialog();const state=session.getSnapshot();
   ui.demo=type;
-  const demo=createIncidentDemo(state.build,type,'Test car');
+  const demo=createIncidentDemo(state.build,type,'Test car',state.trackId);
   beginAnimation(demo.field,`${INCIDENTS[type].title} · engineering lab`,()=>{ui.demo=null;ui.raceTelemetry=null;setView('rover');},18000,demo);
 }
 
@@ -192,11 +197,11 @@ document.addEventListener('click', async event => {
   if (action === 'home') event.preventDefault();
   if (ui.busy && !['skip-run', 'boost', 'help', 'camera', 'close-dialog', 'race-camera', 'follow-incident', 'pause-race', 'race-speed', 'part-details', 'incident-lab', 'incident-info', 'chat-react', 'view-chapter'].includes(action)) { showToast('Let this run finish, or skip its animation.'); return; }
   switch (action) {
-    case 'home': case 'briefing': openDialog(briefingDialog()); break;
+    case 'home': case 'briefing': openDialog(briefingDialog(session.getSnapshot())); break;
     case 'workshop': closeDialog(); document.querySelector('.workspace').scrollIntoView({ behavior: 'smooth', block: 'center' }); break;
     case 'help': openDialog(helpDialog()); break;
-    case 'season': openDialog(seasonDialog()); break;
-    case 'season-round': if (button.dataset.round === '01') { closeDialog(); if (session.getSnapshot().phase === 'results') reset(); } else openDialog(roundConceptDialog(button.dataset.round)); break;
+    case 'tracks': openDialog(tracksDialog(session.getSnapshot())); break;
+    case 'select-track': if (dispatch({ type: 'SELECT_TRACK', id: button.dataset.track }).ok) { ui.guess = null; ui.viewChapter = null; ui.suggested.clear(); closeDialog(); showToast(`${trackById(button.dataset.track).title} selected.`); } break;
     case 'profile': openDialog(profileDialog(session.getSnapshot())); break;
     case 'close-dialog': closeDialog(); break;
     case 'category': ui.category = button.dataset.category; render(); break;
@@ -228,7 +233,7 @@ document.addEventListener('click', async event => {
       if (ui.scanning || !dispatch({ type: 'RACE' }).ok) break;
       const state = session.getSnapshot();
       resetRaceBroadcast();
-      beginAnimation(state.race.field, 'Dune Valley · Eight-lap Grand Prix', () => { dispatch({ type: 'REVEAL' }); showToast('Chequered flag! Final classification and your AI discovery are ready.'); }, RACE_PLAYBACK_MS);
+      beginAnimation(state.race.field, `${trackById(state.trackId).title} · Eight-lap Grand Prix`, () => { dispatch({ type: 'REVEAL' }); showToast('Chequered flag! Final classification and your AI discovery are ready.'); }, RACE_PLAYBACK_MS);
       break;
     }
     case 'race-camera': scene.setRaceCamera(button.dataset.camera);document.querySelectorAll('[data-action="race-camera"]').forEach(item=>{item.classList.toggle('selected',item===button);item.setAttribute('aria-pressed',String(item===button));}); break;
