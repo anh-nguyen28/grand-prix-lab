@@ -225,7 +225,7 @@ export function createWorkshop(container) {
     if(current.getRace&&!current.replay){const race=current.getRace(),rows=sampleRace(race,race.maxTime+1);for(const actor of actors){placeActor(actor,rows.find(item=>item.id===actor.entry.id),race.maxTime);}current.onProgress?.(1,{rows,elapsed:race.maxTime,lights:0,started:true,paused:false,speed:current.speed});}
     controls.enabled=true;current.done();
   }
-  const observer=new ResizeObserver(()=>{const {width,height}=container.getBoundingClientRect();if(!width||!height)return;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();});observer.observe(container);
+  const observer=new ResizeObserver(()=>{const width=container.clientWidth,height=container.clientHeight;if(!width||!height)return;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();});observer.observe(container);
   resetCamera();
   function tick(now){
     if(disposed)return;frame=requestAnimationFrame(tick);if(now-lastFrame<33)return;lastFrame=now;

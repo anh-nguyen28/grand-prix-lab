@@ -112,7 +112,7 @@
 
 /* Live chat: the right-hand column during a race. */
 .workspace.race-mode:not(.demo-mode) .intel-panel{display:block;padding:0;overflow:hidden}
-.race-chat{display:flex;flex-direction:column;height:clamp(500px,calc(100dvh - 390px),740px);padding:14px}
+.race-chat{display:flex;flex-direction:column;height:clamp(500px,calc(100dvh / var(--ui-zoom,1) - 390px),740px);padding:14px}
 .chat-header{display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .chat-header strong{font:700 13px var(--display)}
 .chat-header small{margin-left:auto;font-size:9px;color:#8191a8}

@@ -6,6 +6,14 @@ import './engineering.css';
 import './garage.css';
 import './broadcast.css';
 import './layout.css';
+
+// Scale the UI up on big screens (never below 1, so small screens are unchanged). Limited by height too, so the garage still fits.
+function fitScale() {
+  const zoom = Math.min(Math.max(Math.min(innerWidth / 1440, innerHeight / 880), 1), 1.8);
+  document.documentElement.style.setProperty('--ui-zoom', zoom.toFixed(3));
+}
+fitScale();
+addEventListener('resize', fitScale);
 import { PARTS, RACE_LAPS, RACE_PLAYBACK_MS } from '../shared/content.js';
 import { updateRaceBroadcast, renderBroadcastTools, resetRaceBroadcast } from './ui/race-ui.js';
 import { renderEngineering, animateSpecs, partDetailsDialog, incidentLabDialog, partAvailability } from './ui/engineering-ui.js';
