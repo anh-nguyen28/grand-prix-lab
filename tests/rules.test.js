@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, changedSlots, transition } from '../shared/game.js';
-import { BUDGET, DEMO_TEAMS, PARTS, DEFAULT_BUILD } from '../shared/content.js';
+import { BUDGET, DEMO_TEAMS, PARTS, DEFAULT_BUILD, DEFAULT_LIVERY, DEFAULT_TEAM, PLAYER_TEAMS } from '../shared/content.js';
 import { buildStats, rankField, simulate } from '../shared/simulation.js';
 
 function act(state, command) { const result = transition(state, command); assert.equal(result.ok, true, result.message); return result.state; }
@@ -111,4 +111,27 @@ test('identical finish times share a place and inputs remain immutable', () => {
 test('a retired player gets no finish points but keeps the earned surface bonus',()=>{
   let state=act(createGame(),{type:'PREDICT',terrain:'sand'});state=act(state,{type:'SET_PART',id:'sprint'});state=qualify(state);state=act(state,{type:'RACE'});state=act(state,{type:'REVEAL'});
   assert.equal(state.field.find(car=>car.id==='you').retired,true);assert.equal(state.score.race,0);assert.equal(state.score.total,3);
+});
+
+test('the showroom livery is cosmetic, validated, kept across rounds and used for the race car', () => {
+  let state = act(createGame(), { type: 'SET_LIVERY', livery: { paint: '#2F6BFF', accent: 'red', helmet: '#ff4fa3', finish: 'chrome', pattern: 'racing', number: 140 } });
+  assert.deepEqual(state.profile.livery, { ...DEFAULT_LIVERY, paint: '#2f6bff', helmet: '#ff4fa3', pattern: 'racing' });
+  state = act(state, { type: 'SET_PROFILE', name: 'Blue Flash', mode: 'solo' });
+  assert.equal(state.profile.livery.paint, '#2f6bff');
+  assert.equal(createGame(state.profile).profile.livery.pattern, 'racing');
+  state = act(qualify(state), { type: 'RACE' });
+  assert.equal(state.race.field.find(car => car.id === 'you').color, '#2f6bff');
+  assert.equal(transition(state, { type: 'SET_LIVERY', livery: DEFAULT_LIVERY }).ok, false);
+});
+
+test('players can join a real F1 team or name their own, and the race uses that team', () => {
+  assert.deepEqual(createGame().profile.team, DEFAULT_TEAM);
+  let state = act(createGame(), { type: 'SET_TEAM', team: { id: 'mclaren', name: 'Ignored' } });
+  assert.deepEqual(state.profile.team, { id: 'mclaren', name: 'McLaren' });
+  assert.equal(transition(state, { type: 'SET_TEAM', team: { id: 'custom', name: '   ' } }).ok, false);
+  state = act(state, { type: 'SET_TEAM', team: { id: 'custom', name: '  Night Shift Racing and Friends Club ' } });
+  assert.deepEqual(state.profile.team, { id: 'custom', name: 'Night Shift Racing and F' });
+  state = act(qualify(state), { type: 'RACE' });
+  assert.equal(state.race.field.find(car => car.id === 'you').team, 'Night Shift Racing and F');
+  assert.equal(transition(state, { type: 'SET_TEAM', team: { id: 'nova' } }).ok, false);
 });

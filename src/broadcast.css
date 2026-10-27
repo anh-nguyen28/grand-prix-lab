@@ -146,3 +146,4 @@
   .incident-banner strong{font-size:12px}
 }
 @media(prefers-reduced-motion:reduce){.race-callout,.ers-button.attack:not(:disabled),.map-pin.active{animation:none}}
+.standing-team{display:block;margin-top:2px;font-size:9px;font-weight:500;font-style:normal;color:#8e9db3}

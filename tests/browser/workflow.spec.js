@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test('desktop: scan, predict, improve, qualify, adjust, race, and reveal', async ({ page }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.stack));
-  await page.goto('/');
-  await expect(page.locator('canvas')).toBeVisible();
+  await page.goto('/');await page.getByRole('button',{name:'Drive to the garage'}).click();
+  await expect(page.locator('#scene canvas')).toBeVisible();
   await expect(page.locator('#scene')).toHaveAttribute('data-ready', 'true');
   await page.screenshot({ path: 'artifacts/workshop-desktop.png', fullPage: true });
   for (let i = 0; i < 3; i++) { await page.getByRole('button', { name: 'Scan mystery stretch' }).click(); await expect(page.locator('.clue.revealed')).toHaveCount(i + 1); }
@@ -65,7 +65,7 @@ test('desktop: scan, predict, improve, qualify, adjust, race, and reveal', async
 
 test('mobile: layout, accessible help, setup, and prediction warning', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('button',{name:'Drive to the garage'}).click();
   await expect(page.getByRole('heading', { name: 'Your race starts in the garage.' })).toBeVisible();
   await expect(page.locator('#scene')).toHaveAttribute('data-ready', 'true');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

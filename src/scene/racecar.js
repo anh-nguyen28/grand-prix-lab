@@ -1,13 +1,20 @@
 import * as THREE from 'three';
 import { box, cylinder, material, batchStaticGeometry } from './geometry.js';
+import { LIVERY_FINISHES, carNumber, cleanLivery } from '../../shared/content.js';
+import { drawTeamLogo } from '../ui/team-logo.js';
 
 import { AERO_LOOKS as AERO, PALETTE, POWER_LOOKS as POWER, SENSOR_LOOKS, TYRE_LOOKS as TYRES } from '../ui/part-looks.js';
 
 // Every part's look comes from part-looks.js, shared with the shelf illustrations.
 const glow=(color,intensity=1)=>new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:intensity,roughness:.4});
 
-export function makeRaceCar(build,color='#ef3038',number='07'){
-  const car=new THREE.Group(),paint=material(color,.3,.25),carbon=material(PALETTE.carbon,.6,.15),rubber=material('#101218'),metal=material(PALETTE.metal,.35,.65),white=material(PALETTE.white,.32);
+// Rivals pass a team colour; the player passes their showroom livery (paint, accent, helmet, finish, pattern, number, team).
+export function makeRaceCar(build,livery=PALETTE.paint,number='07'){
+  const look=typeof livery==='string'?{paint:livery,accent:PALETTE.white}:cleanLivery(livery),finish=LIVERY_FINISHES[look.finish]||{roughness:.3,metalness:.25};
+  if(typeof livery!=='string')number=carNumber(look);
+  const team=typeof livery==='string'?null:livery.team;
+  const car=new THREE.Group(),paint=material(look.paint,finish.roughness,finish.metalness),carbon=material(PALETTE.carbon,.6,.15),rubber=material('#101218'),metal=material(PALETTE.metal,.35,.65),white=material(look.accent||PALETTE.white,.32);
+  const split=look.pattern==='split',podPaint=split?material(look.accent,finish.roughness,finish.metalness):paint;
   const tyre=TYRES[build.wheels]||TYRES.road,power=POWER[build.power]||POWER.electric,aero=AERO[build.body]||AERO.alloy;
   const compound=material(tyre.stripe),wheels=[];
   box(car,[4.5,.14,2],[-.05,.35,0],carbon,.03);box(car,[2.7,.42,.85],[-.5,.65,0],paint,.14);
@@ -16,22 +23,23 @@ export function makeRaceCar(build,color='#ef3038',number='07'){
   for(const z of [-.9,.9]){
     // Front wing: more flaps for more downforce.
     for(let i=0;i<aero.frontFlaps;i++){const flap=box(car,[.38-i*.07,.06,1.05],[2.41-i*.13,.43+i*.09,z],i===aero.frontFlaps-1&&aero.accent?material(aero.accent):paint,.015);flap.rotation.z=-.15-i*.12;}
-    box(car,[.65,.42,.08],[2.5,.43,Math.sign(z)*1.56],paint,.025);
-    const pod=box(car,[2.15,.46,.51],[-.65,.64,Math.sign(z)*.64],paint,.13);pod.rotation.y=Math.sign(z)*.08;
+    box(car,[.65,.42,.08],[2.5,.43,Math.sign(z)*1.56],podPaint,.025);
+    const pod=box(car,[2.15,.46,.51],[-.65,.64,Math.sign(z)*.64],podPaint,.13);pod.rotation.y=Math.sign(z)*.08;
     // Sidepod inlets: big openings cool well; tiny ones run hot.
     box(car,[.3,power.inlet,.45],[.26,.69,Math.sign(z)*.64],carbon,.03);
-    box(car,[1.45,.07,.03],[-.5,.72,Math.sign(z)*.91],white,.01);
+    if(!split)box(car,[1.45,.07,.03],[-.5,.72,Math.sign(z)*.91],white,.01);
     for(const x of [-1.65,1.5])for(const dx of [-.22,.22]){const arm=box(car,[.07,.07,1.1],[x+dx,.47,Math.sign(z)*.8],carbon,.015);arm.rotation.y=dx>0?.38:-.38;}
     if(power.extra==='batteries')for(const x of [-.35,-1.05])box(car,[.6,.2,.4],[x,.97,Math.sign(z)*.64],glow(PALETTE.battery,.9),.04);
     if(aero.floor){box(car,[3.3,.12,.06],[-.35,.32,Math.sign(z)*1.02],carbon,.02);box(car,[3.3,.03,.06],[-.35,.39,Math.sign(z)*1.02],material(PALETTE.cyan),0);}
   }
   box(car,[1.02,.2,.7],[-.18,.94,0],carbon,.18);
-  const helmet=new THREE.Mesh(new THREE.SphereGeometry(.25,16,12),material('#f2d977',.3));helmet.position.set(-.25,1.16,0);car.add(helmet);
+  const helmet=new THREE.Mesh(new THREE.SphereGeometry(.25,16,12),material(look.helmet||'#f2d977',.3));helmet.position.set(-.25,1.16,0);car.add(helmet);
   box(car,[.1,.1,.36],[-.03,1.17,0],carbon,.035);
   const halo=new THREE.Mesh(new THREE.TorusGeometry(.43,.045,8,24,Math.PI*1.65),carbon);halo.rotation.x=Math.PI/2;halo.rotation.z=-.9;halo.position.set(-.14,1.27,0);car.add(halo);
   box(car,[.05,.34,.05],[.29,1.1,0],carbon,.01);box(car,[.64,.62,.4],[-.91,1.02,0],paint,.09);box(car,[.13,.17,.25],[-.55,1.27,0],carbon,.04);
   // Engine cover: taller for high-output units, with a cooling grille or vents.
   box(car,[1.15,power.cover,.52],[-1.4,.76,0],paint,.12);
+  if(look.pattern==='racing')for(const z of [-.13,.13]){box(car,[1.15,.02,.08],[-1.4,.765+power.cover/2,z],white,0);box(car,[.8,.02,.07],[.7,.81,z*.7],white,0);}
   for(let i=0;i<power.vents;i++)box(car,[.06,.03,.45],[-1.8+i*.16,.78+power.cover/2,0],carbon,.01);
   // Power units carry a coloured signature that reads from the garage camera.
   if(power.extra==='grille')for(const z of [-.62,.62])box(car,[1.1,.04,.42],[-.7,.9,z],glow(PALETTE.grille,.5),.01);
@@ -46,7 +54,7 @@ export function makeRaceCar(build,color='#ef3038',number='07'){
   const wingWidth=aero.width,wingMat=aero.accent?material(aero.accent):carbon;
   const main=box(car,[.64,.13,wingWidth],[-2.12,aero.height,0],paint,.025);main.rotation.z=.13;
   for(let i=1;i<aero.elements;i++){const element=box(car,[.4-i*.04,.06,wingWidth],[-2.2-i*.04,aero.height+.2*i+(aero.open?.12:0),0],i===aero.elements-1?wingMat:carbon,.015);element.rotation.z=aero.open?-.35:.25+i*.12;}
-  for(const z of [-wingWidth/2,wingWidth/2])box(car,[.78,.54+aero.elements*.1,.07],[-2.12,aero.height-.04,z],aero.accent?material(aero.accent):paint,.02);
+  for(const z of [-wingWidth/2,wingWidth/2])box(car,[.78,.54+aero.elements*.1,.07],[-2.12,aero.height-.04,z],aero.accent?material(aero.accent):podPaint,.02);
   if(aero.floor)for(let i=0;i<5;i++)box(car,[.5,.2,.04],[-2.35,.36,-.6+i*.3],carbon,.01);
   for(const x of [-1.65,1.5])for(const z of [-1.2,1.2]){
     const wheel=new THREE.Group();wheel.position.set(x,.53,z);car.add(wheel);wheels.push(wheel);
@@ -70,7 +78,19 @@ export function makeRaceCar(build,color='#ef3038',number='07'){
   const canvas=document.createElement('canvas');canvas.width=canvas.height=128;const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.font='italic 900 82px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(number,64,64);
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
   const decal=new THREE.Mesh(new THREE.PlaneGeometry(.55,.55),new THREE.MeshBasicMaterial({color:'#fff',map:texture,transparent:true,depthWrite:false}));decal.rotation.x=-Math.PI/2;decal.position.set(1.45,.82,0);car.add(decal);
+  if(team)addTeamLogo(car,team,look,aero);
   batchStaticGeometry(car,mesh=>!wheels.includes(mesh.parent));wheels.forEach(wheel=>batchStaticGeometry(wheel));car.userData.wheels=wheels;return car;
+}
+
+// The team badge (or logo file) sits on both sidepod flanks and on top of the rear wing.
+function addTeamLogo(car,team,look,aero){
+  const canvas=document.createElement('canvas');canvas.width=256;canvas.height=128;
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=4;let disposed=false;texture.addEventListener('dispose',()=>{disposed=true;});
+  drawTeamLogo(canvas,team,look,()=>{if(!disposed)texture.needsUpdate=true;});
+  const logo=new THREE.MeshStandardMaterial({map:texture,transparent:true,depthWrite:false,roughness:.45,polygonOffset:true,polygonOffsetFactor:-2});
+  for(const side of [-1,1]){const flank=new THREE.Mesh(new THREE.PlaneGeometry(.58,.29),logo);flank.position.set(-.85,.56,side*.915);flank.rotation.y=side*.08+(side<0?Math.PI:0);car.add(flank);}
+  const width=Math.min(aero.width*.55,.84),wing=new THREE.Mesh(new THREE.PlaneGeometry(width,width/2).rotateX(-Math.PI/2).rotateY(-Math.PI/2),logo);
+  wing.position.set(-2.12,aero.height+.072,0);wing.rotation.z=.13;car.add(wing);
 }
 
 // Each sensor has its own pod on a mast above the roll hoop, large enough to read from the garage camera.

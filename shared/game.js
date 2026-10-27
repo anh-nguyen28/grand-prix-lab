@@ -1,4 +1,4 @@
-import { BUDGET, COURSE, DEFAULT_BUILD, DEMO_TEAMS, MAX_CHANGED_SLOTS, PARTS, PRACTICE_RUNS, SLOTS } from './content.js';
+import { BUDGET, COURSE, DEFAULT_BUILD, DEMO_TEAMS, cleanLivery, cleanTeam, MAX_CHANGED_SLOTS, PARTS, PRACTICE_RUNS, SLOTS } from './content.js';
 import { buildStats, racePoints, simulate } from './simulation.js';
 import { addPlayerBoost, createRace, finishRace } from './race.js';
 
@@ -9,7 +9,7 @@ function startingBuild(build) {
 }
 export function createGame(profile = { name: 'You', mode: 'solo' }, build = null) {
   return {
-    version: 1, phase: 'practice', profile, build: startingBuild(build),
+    version: 1, phase: 'practice', profile: { ...profile, livery: cleanLivery(profile.livery), team: cleanTeam(profile.team) }, build: startingBuild(build),
     clues: [], sensorLocked: false, prediction: null, predictionLocked: false,
     runs: [], qualifying: null, qualifyingBuild: null, field: [], race: null, score: null,
   };
@@ -28,9 +28,18 @@ export function transition(previous, command) {
       if (state.phase !== 'practice') return reject('Finish this round before starting a new garage.');
       const name = String(command.name ?? '').trim().slice(0, 24);
       if (!name) return reject('Give your garage a name first.');
-      state.profile = { name, mode: command.mode === 'team' ? 'team' : 'solo' };
+      state.profile = { ...state.profile, name, mode: command.mode === 'team' ? 'team' : 'solo' };
       break;
     }
+    case 'SET_LIVERY':
+      if (state.phase === 'race') return reject('Your livery is locked while the race is running.');
+      state.profile.livery = cleanLivery(command.livery);
+      break;
+    case 'SET_TEAM':
+      if (state.phase === 'race') return reject('You cannot switch teams while the race is running.');
+      if (command.team?.id === 'custom' && !String(command.team.name ?? '').trim()) return reject('Give your team a name first.');
+      state.profile.team = cleanTeam(command.team);
+      break;
     case 'SET_PART': {
       if (!editable) return reject('Your build is locked for this run.');
       const part = PARTS[command.id];
@@ -74,7 +83,7 @@ export function transition(previous, command) {
       break;
     case 'RACE': {
       if (state.phase !== 'adjust') return reject('Complete qualifying before entering the race.');
-      state.race = createRace([{ id: 'you', name: state.profile.name, team: 'Your team', color: '#ff3b38', build: state.build }, ...DEMO_TEAMS], state.qualifyingBuild);
+      state.race = createRace([{ id: 'you', name: state.profile.name, team: state.profile.team.name, teamId: state.profile.team.id, color: state.profile.livery.paint, build: state.build }, ...DEMO_TEAMS], state.qualifyingBuild);
       state.phase = 'race';
       break;
     }

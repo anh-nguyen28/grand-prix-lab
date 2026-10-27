@@ -8,12 +8,13 @@ import { escapeHtml as e, icon, slotIcon } from './icons.js';
 import { renderTimingTower, renderRaceActions } from './race-ui.js';
 import { renderPartShelf } from './engineering-ui.js';
 import { renderRaceChat } from './race-chat.js';
+import { teamLogo } from './team-logo.js';
 
 export function renderShell() {
   return `
     <header class="site-header">
       <a class="brand" href="#" data-action="home" aria-label="AI Grand Prix home"><span class="brand-mark"><i></i><i></i><i></i><i></i><i></i></span><span>AI GRAND PRIX<span class="brand-sub">ENGINEER YOUR ADVANTAGE.</span></span></a>
-      <nav class="main-nav" aria-label="Main navigation"><button class="nav-link active" data-action="workshop">Pit garage</button><button class="nav-link" data-action="season">The season <span class="tiny">06</span></button></nav>
+      <nav class="main-nav" aria-label="Main navigation"><button class="nav-link active" data-action="workshop">Pit garage</button><button class="nav-link" data-action="showroom">Showroom</button><button class="nav-link" data-action="season">The season <span class="tiny">06</span></button></nav>
       <div class="header-right"><span class="preview-label"><span></span>PLAYABLE PROTOTYPE</span><button class="profile-button" data-action="profile" aria-label="Set up your garage">${icon('user')}<span id="profile-label">Your garage</span>${icon('chevron')}</button></div>
     </header>
     <main class="app-main">
@@ -129,12 +130,12 @@ function renderResults(state) {
     .sort((a, b) => (b.impact.retired - a.impact.retired) || (b.impact.after - b.impact.before) - (a.impact.after - a.impact.before))
     .map(item => [item.event.type, item])).values()].slice(0, 3);
   const finisher = place => state.field.find(entry => entry.place === place && !entry.retired);
-  return `<div class="eyebrow">CHEQUERED FLAG / ${RACE_LAPS} LAPS</div><div class="finish-place"><span>${you.retired?'OUT':String(you.place).padStart(2, '0')}</span><div><strong>${you.retired?'Retired':`P${you.place} of ${state.field.length}`}</strong><p>${you.retired?'Brake fire · did not finish':`${you.result.time.toFixed(2)} seconds`}</p></div></div>
+  return `<div class="eyebrow">CHEQUERED FLAG / ${RACE_LAPS} LAPS</div><div class="finish-place"><span>${you.retired?'OUT':String(you.place).padStart(2, '0')}</span><div><strong>${you.retired?'Retired':`P${you.place} of ${state.field.length}`}</strong><p>${you.retired?'Brake fire · did not finish':`${you.result.time.toFixed(2)} seconds`} · ${e(state.profile.team.name)}</p></div>${teamLogo(state.profile.team, state.profile.livery, 'result-logo')}</div>
     <div class="podium">${[2, 1, 3].map(place => finisher(place)).map((entry, i) => entry ? `<div class="step-${[2, 1, 3][i]} ${entry.id === 'you' ? 'is-you' : ''}"><i style="background:${entry.color}"></i><strong>${driverCode(entry)}</strong><span>P${[2, 1, 3][i]}</span></div>` : '').join('')}</div>
     <div class="score-breakdown"><div><span>Race finish</span><strong>+${state.score.race}</strong></div><div><span>Surface label bonus</span><strong>+${state.score.prediction}</strong></div><div class="score-total"><span>Round points</span><strong>${state.score.total}<small> PTS</small></strong></div></div>
     <div class="race-debrief"><span class="eyebrow">YOUR INCIDENT REEL</span>${mine.length ? mine.map(item => { const fixes = incidentFixes(state.build, item.event.type).slice(0, 2); return `<div class="reel-item"><div><strong>Lap ${item.event.lap} · ${item.event.title}</strong><span>${item.impact.retired ? 'RETIRED' : `+${item.event.loss.toFixed(1)}s · P${item.impact.before} → P${item.impact.after}`}</span></div><p>${fixes.length ? `Next time: ${fixes.map(fix => `${fix.name} (${fix.cost > 0 ? '+' : ''}${fix.cost} cr)`).join(' or ')}.` : item.event.remedy}</p>${replayButton(item)}</div>`; }).join('') : '<p>A clean race. Your setup avoided every handling and cooling incident.</p>'}</div>
     ${others.length ? `<div class="race-debrief field-reel"><span class="eyebrow">LEARN FROM THE FIELD</span>${others.map(item => `<div class="reel-item"><div><strong>${e(item.car.name)} · ${item.event.title}</strong><span>${item.impact.retired ? 'RETIRED' : `P${item.impact.before} → P${item.impact.after}`}</span></div><p>${item.event.cause}</p>${replayButton(item)}</div>`).join('')}</div>` : ''}
-    <details class="full-classification"><summary>Full classification · ${state.field.length} cars</summary><div class="standings">${state.field.map(entry => `<div class="${entry.id === 'you' ? 'is-you' : ''}"><span>${entry.place}</span><i style="background:${entry.color}"></i><strong>${e(entry.name)}${entry.id === 'you' ? '<small> YOU</small>' : ''}</strong><span>${entry.retired?'RETIRED':`${entry.result.time.toFixed(2)}s`}</span></div>`).join('')}</div></details>`;
+    <details class="full-classification"><summary>Full classification · ${state.field.length} cars</summary><div class="standings">${state.field.map(entry => `<div class="${entry.id === 'you' ? 'is-you' : ''}"><span>${entry.place}</span><i style="background:${entry.color}"></i><strong>${e(entry.name)}${entry.id === 'you' ? '<small> YOU</small>' : ''}<em class="standing-team">${e(entry.team)}</em></strong><span>${entry.retired?'RETIRED':`${entry.result.time.toFixed(2)}s`}</span></div>`).join('')}</div></details>`;
 }
 function renderLesson(state) {
   return `<div class="lesson-layout"><div><div class="lesson-tag">${icon('bolt')} FIELD NOTES · EPILOGUE</div><div class="lesson-illustration"><span>DATA</span><i>→</i><span>?</span><i>→</i><span>SAND</span></div><h2 class="lesson-title">You just made a<br><em>classification.</em></h2><p class="lesson-body">You took three readings, looked for a pattern and put an unknown surface into a category. That is exactly what an AI classifier does with its input data.</p></div>

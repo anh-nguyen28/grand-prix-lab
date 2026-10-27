@@ -4,7 +4,7 @@ test.use({reducedMotion:'no-preference'});
 
 test('race presentation: driver names are separated and the lap display stays clear of controls', async ({page})=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.stack));
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('button',{name:'Drive to the garage'}).click();
   await page.getByRole('button',{name:'Ready to qualify'}).click();
   await page.getByRole('button',{name:'Continue without bonus'}).click();
   await expect(page.getByRole('button',{name:'Lock build & race'})).toBeVisible({timeout:30000});

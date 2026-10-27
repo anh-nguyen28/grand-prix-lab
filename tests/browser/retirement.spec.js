@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('a scored race shows cooling failure, brake fire, retirement and zero finishing points', async ({page})=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.stack));
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('button',{name:'Drive to the garage'}).click();
   await page.getByRole('tab',{name:'Power',exact:true}).click();
   await page.getByRole('button',{name:'Pick up Uncooled sprint package'}).click();
   await page.getByRole('button',{name:'Fit Uncooled sprint package to car',exact:true}).click();
