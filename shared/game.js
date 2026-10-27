@@ -2,9 +2,14 @@ import { BUDGET, COURSE, DEFAULT_BUILD, DEMO_TEAMS, MAX_CHANGED_SLOTS, PARTS, PR
 import { buildStats, racePoints, simulate } from './simulation.js';
 import { addPlayerBoost, createRace, finishRace } from './race.js';
 
-export function createGame(profile = { name: 'You', mode: 'solo' }) {
+// A new round can start from a previous car, so players can apply what the last race taught them.
+function startingBuild(build) {
+  const valid = build && SLOTS.every(slot => PARTS[build[slot]]?.slot === slot) && buildStats(build).cost <= BUDGET;
+  return valid ? Object.fromEntries(SLOTS.map(slot => [slot, build[slot]])) : { ...DEFAULT_BUILD };
+}
+export function createGame(profile = { name: 'You', mode: 'solo' }, build = null) {
   return {
-    version: 1, phase: 'practice', profile, build: { ...DEFAULT_BUILD },
+    version: 1, phase: 'practice', profile, build: startingBuild(build),
     clues: [], sensorLocked: false, prediction: null, predictionLocked: false,
     runs: [], qualifying: null, qualifyingBuild: null, field: [], race: null, score: null,
   };
@@ -32,7 +37,7 @@ export function transition(previous, command) {
       if (!part) return reject('That part is not in this garage.');
       if (part.slot === 'sensor' && state.sensorLocked) return reject('Your sensor stays fitted after the first scan.');
       const build = { ...state.build, [part.slot]: part.id };
-      if (buildStats(build).cost > BUDGET) return reject('That combination costs more than 100 credits. Try a cheaper part.');
+      if (buildStats(build).cost > BUDGET) return reject(`That combination costs more than ${BUDGET} credits. Try a cheaper part.`);
       if (state.phase === 'adjust' && changedSlots(state, build).length > MAX_CHANGED_SLOTS) return reject('You can change two slots after qualifying. Revert a changed slot first.');
       state.build = build;
       break;

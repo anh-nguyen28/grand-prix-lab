@@ -11,9 +11,9 @@ test('race presentation: driver names are separated and the lap display stays cl
   await page.getByRole('button',{name:'Lock build & race'}).click();
   await expect(page.locator('[data-action="boost"]')).toBeEnabled({timeout:30000});
   await page.getByRole('button',{name:'Circuit',exact:true}).last().click();
-  await expect(page.locator('.driver-label:not([hidden])')).toHaveCount(6);
+  await expect(page.locator('.driver-label')).toHaveCount(20);
   const layout=await page.evaluate(()=>{
-    const labels=[...document.querySelectorAll('.driver-label')].map(label=>label.getBoundingClientRect());
+    const labels=[...document.querySelectorAll('.driver-label:not([hidden]):not(.compact)')].map(label=>label.getBoundingClientRect());
     let overlaps=0;
     for(let i=0;i<labels.length;i++)for(let j=i+1;j<labels.length;j++){
       const a=labels[i],b=labels[j];if(a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top)overlaps++;
@@ -30,7 +30,7 @@ test('race presentation: driver names are separated and the lap display stays cl
   await page.getByRole('button',{name:'Resume race'}).click();
   await page.getByRole('button',{name:'Change playback speed'}).click();
   await expect(page.getByRole('button',{name:'Change playback speed'})).toHaveText('2×');
-  await expect(page.locator('#incident-banner')).toContainText(/Wheelspin|Running wide/,{timeout:45000});
+  await expect(page.locator('#incident-banner')).toContainText('YELLOW FLAG',{timeout:45000});
   await page.getByRole('button',{name:'Pause race'}).click();
   await expect(page.locator('#incident-banner')).toBeVisible();
   await page.screenshot({path:'artifacts/race-desktop.png',fullPage:true});
@@ -44,6 +44,7 @@ test('race presentation: driver names are separated and the lap display stays cl
   expect(ranks.every(row=>row.transform!=='none')).toBe(true);
   expect(await page.locator('.timing-row').first().evaluate(row=>parseFloat(getComputedStyle(row).transitionDuration))).toBeGreaterThan(0);
   await page.getByRole('button',{name:'Skip to finish'}).click();
-  await expect(page.locator('.standings>div')).toHaveCount(6);
+  await expect(page.locator('.standings>div')).toHaveCount(20);
+  await expect(page.locator('.podium>div')).toHaveCount(3);
   expect(errors).toEqual([]);
 });

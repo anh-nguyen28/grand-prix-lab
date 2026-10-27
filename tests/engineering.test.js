@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_BUILD, DEMO_TEAMS } from '../shared/content.js';
+import { DEFAULT_BUILD, DEMO_TEAMS, PARTS } from '../shared/content.js';
 import { buildIncidents, INCIDENTS, setupRisks } from '../shared/engineering.js';
 import { addPlayerBoost, createIncidentDemo, createRace, finishRace, sampleRace } from '../shared/race.js';
 
 const risky={...DEFAULT_BUILD,power:'torque',body:'scout'};
+const grippy={...DEFAULT_BUILD,wheels:'offroad',body:'scout'};
 test('setup warnings correspond to real, avoidable race incidents',()=>{
   const types=new Set(buildIncidents(risky).map(event=>event.type));
   for(const risk of setupRisks(risky))assert.ok(types.has(risk.type));
@@ -12,6 +13,11 @@ test('setup warnings correspond to real, avoidable race incidents',()=>{
   assert.deepEqual(buildIncidents({...DEFAULT_BUILD,wheels:'offroad',body:'carbon'}),[]);
   assert.equal(buildIncidents({...risky,power:'electric'}).some(event=>['overheat','brakefade'].includes(event.type)),false);
   assert.equal(buildIncidents({...risky,body:'alloy'}).some(event=>['understeer','contact'].includes(event.type)),false);
+  assert.equal(buildIncidents(grippy).some(event=>event.type==='contact'),false);
+  assert.deepEqual(buildIncidents({...DEFAULT_BUILD,wheels:'medium'}),[]);
+  // Traits, not part names, decide incidents: soft tyres behave like slicks on sand.
+  assert.deepEqual(buildIncidents({...DEFAULT_BUILD,wheels:'soft'}).map(event=>event.type),buildIncidents(DEFAULT_BUILD).map(event=>event.type));
+  for(const id of ['paddle','battery','turbo','drs','floor'])assert.deepEqual(buildIncidents({...DEFAULT_BUILD,wheels:'medium',[PARTS[id].slot]:id}),[]);
 });
 test('incidents happen at their track location and carry their cost into the result',()=>{
   const race=createRace([{id:'you',name:'Risk test',build:risky},...DEMO_TEAMS],risky);race.boosts=[];
@@ -25,8 +31,9 @@ test('incidents happen at their track location and carry their cost into the res
   const result=finishRace(race).find(car=>car.id==='you');
   assert.ok(Math.abs(result.result.time-(baseTime+loss+entry.startDelay))<.002);
 });
-test('all 27 non-sprint setup combinations have finite monotonic progress and finish',()=>{
-  for(const wheels of ['road','offroad','tracks'])for(const power of ['electric','torque','solar'])for(const body of ['alloy','carbon','scout']){
+const ids=slot=>Object.values(PARTS).filter(part=>part.slot===slot&&part.id!=='sprint').map(part=>part.id);
+test('every non-sprint setup combination has finite monotonic progress and finishes',()=>{
+  for(const wheels of ids('wheels'))for(const power of ids('power'))for(const body of ids('body')){
     const build={wheels,power,body,sensor:'camera'},race=createRace([{id:'you',name:'Test',build}],build);let distance=0;
     assert.ok(race.field[0].timeline.every(piece=>piece.duration>0));
     assert.ok(race.field[0].incidents.every(event=>event.type!=='fire'));

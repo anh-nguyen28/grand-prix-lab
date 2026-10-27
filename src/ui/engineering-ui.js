@@ -1,5 +1,5 @@
-import { BUDGET, PARTS, SLOT_LABELS } from '../../shared/content.js';
-import { ENGINEERING, INCIDENTS, engineeringStats, setupRisks } from '../../shared/engineering.js';
+import { BUDGET, PARTS, SLOT_LABELS, SLOTS } from '../../shared/content.js';
+import { ENGINEERING, INCIDENTS, setupRisks, specSheet } from '../../shared/engineering.js';
 import { buildStats } from '../../shared/simulation.js';
 import { changedSlots } from '../../shared/game.js';
 import { escapeHtml as e, icon } from './icons.js';
@@ -13,15 +13,28 @@ export function partAvailability(state, id, busy = false) {
   if(state.phase==='adjust'&&changedSlots(state,next).length>2) return 'Two slots changed';
   return null;
 }
-export function renderPartShelf(state, category, busy) {
+export function renderPartShelf(state, category, busy, suggested = new Set()) {
   return Object.values(PARTS).filter(part=>part.slot===category).map(part=>{
     const selected=state.build[category]===part.id, reason=partAvailability(state,part.id,busy);
-    return `<article class="shelf-part ${selected?'is-fitted':''}" data-part-id="${part.id}"><button class="part-object" data-action="pick-part" data-id="${part.id}" aria-label="Pick up ${part.name}" aria-pressed="false" ${reason?'disabled':''}>${partArt(part.id)}<span class="part-pedestal"></span><span class="part-fitted">${selected?`${icon('check')} FITTED`:reason||'DRAG TO CAR'}</span></button><div class="shelf-caption"><strong>${part.name}</strong><span>${part.cost}<small> CR</small></span></div><p>${ENGINEERING[part.id].tagline}</p><button class="part-details" data-action="part-details" data-id="${part.id}">More details ${icon('arrow')}<span class="sr-only"> about ${part.name}</span></button></article>`;
+    return `<article class="shelf-part ${selected?'is-fitted':''} ${suggested.has(part.id)&&!selected?'is-suggested':''}" data-part-id="${part.id}"><button class="part-object" data-action="pick-part" data-id="${part.id}" aria-label="Pick up ${part.name}" aria-pressed="false" ${reason?'disabled':''}>${partArt(part.id)}<span class="part-pedestal"></span><span class="part-fitted">${selected?`${icon('check')} FITTED`:reason||(suggested.has(part.id)?'FIXES THE RISK':'DRAG TO CAR')}</span></button><div class="shelf-caption"><strong>${part.name}</strong><span>${part.cost}<small> CR</small></span></div><p>${ENGINEERING[part.id].tagline}</p><button class="part-details" data-action="part-details" data-id="${part.id}">More details ${icon('arrow')}<span class="sr-only"> about ${part.name}</span></button></article>`;
   }).join('');
 }
+// Stat bars start at the previous value and slide to the new one, with the change shown beside them.
+let shownSpecs = null;
+const tone = value => value >= 70 ? 'good' : value >= 40 ? 'average' : 'low';
+const verdict = value => value >= 70 ? 'Strong' : value >= 40 ? 'Average' : 'Weak';
 export function renderEngineering(state) {
-  const stats=engineeringStats(state.build), risks=setupRisks(state.build);
-  return `<div class="engineering-header"><span class="eyebrow">HOW YOUR CAR WILL RACE</span><button data-action="incident-lab">Preview failures ${icon('arrow')}</button></div><p class="build-purpose">These are the strengths and risks of your fitted parts. They affect your speed, turning and chance of finishing.</p><div class="engineering-meters">${Object.entries(stats).map(([label,value])=>`<div><span>${label==='endurance'?'Tyre life':label==='cooling'?'Cooling margin':'Cornering'}</span><strong>${value>=75?'Strong':value>=55?'Balanced':'Limited'}</strong><i><b style="width:${value}%;--meter:${value<50?'#ffab75':'#7bd8be'}"></b></i></div>`).join('')}</div><div class="setup-risks">${risks.length?risks.map(risk=>`<button data-action="incident-info" data-type="${risk.type}">${icon('info')}<span><strong>${risk.text}</strong><small>${risk.detail}</small></span>${icon('chevron')}</button>`).join(''):'<span class="clean-setup">✓ This build can finish without a major handling or cooling problem</span>'}</div>`;
+  const risks=setupRisks(state.build), stats=buildStats(state.build), specs=specSheet(state.build), previous=shownSpecs;
+  shownSpecs=Object.fromEntries(specs.map(spec=>[spec.id,spec.value]));
+  return `<div class="engineering-header"><span class="eyebrow">CAR STATS</span><button data-action="incident-lab">Preview failures ${icon('arrow')}</button></div><h2 class="stats-title">How your car will race</h2><div class="spec-sheet">${specs.map(spec=>{
+    const before=previous?.[spec.id]??spec.value, delta=spec.value-before;
+    return `<div class="spec tone-${tone(spec.value)}"><span>${spec.label}</span><strong>${delta?`<em class="spec-delta ${delta>0?'up':'down'}">${delta>0?'+':'−'}${Math.abs(delta)}</em>`:''}${verdict(spec.value)} <small>${spec.value}</small></strong><i><b class="tone-${tone(before)}" style="width:${before}%" data-target="${spec.value}" data-tone="${tone(spec.value)}"></b></i></div>`;
+  }).join('')}</div><div class="setup-risks">${risks.length?risks.map(risk=>`<button data-action="incident-info" data-type="${risk.type}">${icon('info')}<span><strong>${risk.text}</strong><small>${risk.detail}</small></span>${icon('chevron')}</button>`).join(''):'<span class="clean-setup">✓ No major handling or cooling risk. Speed is another question.</span>'}</div><div class="fitted-parts"><span class="eyebrow">FITTED PARTS</span>${SLOTS.map(slot=>`<div><span>${SLOT_LABELS[slot]}</span><strong>${PARTS[state.build[slot]].name}</strong><em>${PARTS[state.build[slot]].cost} cr</em></div>`).join('')}<div class="fitted-total"><span>Total</span><em>${stats.cost} / ${BUDGET} cr</em></div></div>`;
+}
+// Called after the panel is in the page, so the bars animate from their old width and colour.
+export function animateSpecs(container) {
+  container.offsetWidth;
+  requestAnimationFrame(() => container.querySelectorAll('.spec-sheet b[data-target]').forEach(bar => { bar.style.width = `${bar.dataset.target}%`; bar.className = `tone-${bar.dataset.tone}`; }));
 }
 function frame(content) {return `<div class="dialog-content engineering-dialog"><button class="dialog-close icon-button" data-action="close-dialog" aria-label="Close dialog">${icon('close')}</button>${content}</div>`;}
 export function partDetailsDialog(state,id,busy=false) {

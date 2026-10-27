@@ -17,8 +17,17 @@ export function makeCarEffects(car) {
     cone.position.set(i*.06,1.1,side*(1.55+i*.04));flame.add(cone);
   }
   const brakeGlow=new THREE.Mesh(new THREE.SphereGeometry(.38,8,6),new THREE.MeshBasicMaterial({color:'#ff693d',transparent:true,opacity:.55}));brakeGlow.position.set(1.5,.53,1.2);group.add(brakeGlow);
+  // A flat ring under the car marks it from any camera distance: amber before an incident, yellow during, red for fire.
+  const ring=new THREE.Mesh(new THREE.RingGeometry(3.2,3.9,40),new THREE.MeshBasicMaterial({color:'#ffd23f',transparent:true,opacity:.85,side:THREE.DoubleSide,depthWrite:false}));
+  ring.rotation.x=-Math.PI/2;ring.position.y=.12;car.add(ring);ring.visible=false;
   group.visible=false;
-  return { update(incident,elapsed,reducedMotion=false){
+  return { update(incident,elapsed,reducedMotion=false,warning=null){
+    ring.visible=!!(incident||warning);
+    if(ring.visible){
+      ring.material.color.set(incident?.type==='fire'?'#ff3b30':incident?'#ffd23f':'#ffa53d');
+      ring.material.opacity=incident?.9:.55;
+      ring.scale.setScalar(reducedMotion?1:incident?1+Math.sin(elapsed*6)*.08:.85+Math.sin(elapsed*4)*.05);
+    }
     group.visible=!!incident;if(!incident)return;
     const type=incident.effect,t=incident.progress;
     smoke.visible=['dust','steam','brake','fire','slide'].includes(type);

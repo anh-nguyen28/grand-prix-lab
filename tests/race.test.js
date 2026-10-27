@@ -5,9 +5,9 @@ import { addPlayerBoost, createRace, effectiveTime, finishRace, sampleRace } fro
 import { createGame, transition } from '../shared/game.js';
 
 const entries = [{ id: 'you', name: 'Ada', build: DEFAULT_BUILD }, ...DEMO_TEAMS];
-test('six drivers receive deterministic classification over an eight-lap race', () => {
+test('the full field receives a deterministic classification over an eight-lap race', () => {
   const race=createRace(entries,DEFAULT_BUILD);
-  assert.equal(race.laps,8);assert.equal(race.field.length,6);assert.equal(RACE_PLAYBACK_MS,240000);
+  assert.equal(race.laps,8);assert.equal(race.field.length,DEMO_TEAMS.length+1);assert.ok(race.field.length>=20);assert.equal(RACE_PLAYBACK_MS,150000);
   assert.ok(race.field.every(car=>car.result.segments.length===24));
   assert.deepEqual(finishRace(race),finishRace(createRace(entries,DEFAULT_BUILD)));
   const final=sampleRace(race,race.maxTime+1);
@@ -38,7 +38,7 @@ test('ERS refuses invalid times, repeated deployments, and a fourth charge', () 
 
 test('qualifying determines the grid and no car travels backwards through the laps', () => {
   const race=createRace(entries,DEFAULT_BUILD);
-  assert.deepEqual(race.field.map(car=>car.grid),[1,2,3,4,5,6]);
+  assert.deepEqual(race.field.map(car=>car.grid),race.field.map((_,i)=>i+1));
   for(let i=1;i<race.field.length;i++)assert.ok(race.field[i].qualifying.time>=race.field[i-1].qualifying.time);
   const previous=new Map();
   for(let time=0;time<race.maxTime+2;time+=.75)for(const car of sampleRace(race,time)){

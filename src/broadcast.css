@@ -1,0 +1,148 @@
+/* Race broadcast for a full grid, incident graphics, and the learning loop around them. Loaded last. */
+
+/* Compact timing tower: twenty rows fit where six used to. */
+#live-standings{height:calc(var(--rows,6) * 27px)}
+.timing-row{height:25px;min-height:25px;padding:0 6px 0 4px;gap:6px;transform:translateY(calc(var(--rank) * 27px))}
+.timing-row>i{height:16px;width:3px}
+.live-position{font-size:12px;width:22px;text-align:center}
+.retired-row .live-position{font-size:8px}
+.timing-name{display:flex;align-items:center;gap:6px;min-width:0}
+.timing-name>strong{font-size:10.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;min-width:0}
+.timing-name .code{font-weight:800;margin-right:6px;color:#fff}
+.timing-name em{font-size:6px}
+.timing-name>small{flex:none;margin:0;font-size:7px;letter-spacing:.4px;padding:2px 4px;border-radius:2px;white-space:nowrap}
+.timing-name>small:empty{display:none}
+.incident-row .timing-name>small{background:#5a3a14;color:#ffd23f}
+.warning-row .timing-name>small{background:#3d2f17;color:#ffa53d}
+.retired-row .timing-name>small,.timing-row.scarred .timing-name>small{background:#232f40;color:#8da0b8}
+.live-gap{font-size:9px;min-width:44px;text-align:right}
+.position-change{font-size:7px;min-width:16px}
+.tower-header h2{font-size:20px;margin:10px 0}
+.tower-header h2>span{font-size:12px}
+.tower-meta{padding-bottom:12px}
+.race-engineer{margin-top:14px}
+
+/* Nameplates: full plates for the cars that matter now, code chips for everyone else. */
+.driver-label>.code{display:none;font-style:normal;font-weight:800;font-size:9px}
+.driver-label.compact{padding:2px 4px 2px 2px;min-height:0;gap:3px;opacity:.88;border-bottom-width:1px}
+.driver-label.compact>span,.driver-label.compact>em{display:none}
+.driver-label.compact>.code{display:inline}
+.driver-label.compact>b{min-width:0;padding:1px 3px;font-size:8px}
+.driver-label.has-incident{border-color:#ffd23f;box-shadow:0 0 0 2px #ffd23f55}
+
+/* Picture-in-picture: a second incident at the same moment. */
+.pip-frame{position:absolute;z-index:4;border:2px solid #ffd23f;border-radius:4px;pointer-events:none;box-shadow:0 6px 20px #0008}
+.pip-frame[hidden]{display:none}
+.pip-frame>span{position:absolute;top:-1px;left:-1px;font:700 7px var(--display);letter-spacing:1px;padding:3px 6px;background:#ffd23f;color:#141414}
+.pip-frame>strong{position:absolute;left:6px;bottom:6px;font:600 10px var(--display);color:#fff;text-shadow:0 1px 4px #000}
+
+/* TV callouts: overtakes, fastest lap, battles, final lap. */
+.race-callout{position:absolute;top:142px;left:50%;transform:translateX(-50%);z-index:6;display:flex;align-items:stretch;border-radius:3px;overflow:hidden;box-shadow:0 8px 24px #0009;pointer-events:none;animation:callout-in .35s ease}
+.race-callout[hidden]{display:none}
+.race-callout>span{font:800 10px var(--display);letter-spacing:1.2px;padding:8px 10px;background:#f03643;color:#fff;display:flex;align-items:center}
+.race-callout>strong{font:600 12px var(--display);padding:8px 12px;background:#101826f2;color:#fff;white-space:nowrap}
+.race-callout[data-kind="overtake"]>span{background:#1fa971}
+.race-callout[data-kind="fastest"]>span{background:#8b4dff}
+.race-callout[data-kind="battle"]>span{background:#2f6fd6}
+@keyframes callout-in{from{opacity:0;transform:translate(-50%,-8px)}}
+
+/* Lower-third: a flag line, who and what, then the impact once the car recovers. */
+.incident-banner{max-width:420px;padding:10px 14px}
+.incident-banner .flag{display:inline-block;font:800 8px var(--display);letter-spacing:1px;padding:3px 6px;border-radius:2px}
+.incident-banner .flag.yellow{background:#ffd23f;color:#141414}
+.incident-banner .flag.red{background:#ff3b30;color:#fff}
+.incident-banner .flag.green{background:#5adfb0;color:#0b2219}
+.incident-banner strong{font-size:14px;margin:8px 0 6px}
+.incident-banner strong>b{font-weight:800;padding:1px 5px;margin-right:4px;background:#ffffff1f;border-radius:2px}
+.incident-banner small{margin-top:0}
+.incident-banner>div{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.incident-banner[data-mode="impact"]{border-left-color:#5adfb0;background:#132722f0;border-color:#2f5d4d}
+
+/* Gap readout and the ERS attack window. */
+#race-advantage.attack{color:#ffd23f;font-weight:700}
+.ers-button.attack:not(:disabled){box-shadow:0 0 0 3px #ffd23f88;animation:attack-pulse 1s ease-in-out infinite}
+@keyframes attack-pulse{50%{box-shadow:0 0 0 6px #ffd23f33}}
+
+/* Minimap pins mark where every incident happened. */
+.map-pin{fill:#ffd23f;opacity:.75}
+.map-pin.fire{fill:#ff3b30}
+.map-pin.active{animation:pin-pulse .8s ease-in-out infinite}
+@keyframes pin-pulse{50%{opacity:.25}}
+
+/* Practice: race risks found, with Watch and Fix. */
+.race-risks{margin-top:12px;padding:10px;border:1px solid #5a4320;border-radius:4px;background:#1f1a12}
+.race-risks.clean{border-color:#2f5d4d;background:#132722}
+.race-risks .eyebrow{font-size:7px;color:#ffb86b}
+.race-risks.clean .eyebrow{color:#7bd8be}
+.race-risks.clean p{font-size:10px;color:#b3d8cb;margin:6px 0 0;display:flex;gap:6px;align-items:center}
+.risk{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:9px 0 0}
+.risk>div{flex:1 0 100%;min-width:0}
+.risk strong{display:block;font-size:10.5px;color:#f3d9bf}
+.risk small{font-size:9px;color:#c9a888}
+.risk .button.small{padding:6px 8px;font-size:9px;min-height:0}
+.shelf-part.is-suggested{border-color:#ffd23f;box-shadow:0 0 0 2px #ffd23f33}
+.shelf-part.is-suggested .part-fitted{color:#ffd23f}
+
+/* Replays carry a small TV bug instead of covering the car. */
+.demo-caption.replay-caption{top:52px;bottom:auto;left:16px;right:auto;max-width:360px;padding:8px 12px}
+.demo-caption.replay-caption>p{display:none}
+.demo-caption.replay-caption>span{background:#f03643;color:#fff;padding:2px 6px;border-radius:2px;display:inline-block}
+
+/* Results: podium, incident reel, and the full classification on demand. */
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:6px;margin:16px 0 6px}
+.podium>div{flex:1;max-width:80px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;background:#18212e;border-radius:3px 3px 0 0;border-top:2px solid #3a475b}
+.podium>.step-1{min-height:84px;border-top-color:#ffd23f}
+.podium>.step-2{min-height:68px;border-top-color:#c9d3df}
+.podium>.step-3{min-height:56px;border-top-color:#d08a52}
+.podium>.is-you{background:#3a2433}
+.podium i{width:8px;height:8px;border-radius:50%}
+.podium strong{font:800 12px var(--display)}
+.podium span{font-size:9px;color:#9aa8bb}
+.race-debrief .reel-item{padding:10px 0;border-top:1px solid #2a3b51;display:grid;gap:6px}
+.reel-item>div{display:flex;justify-content:space-between;gap:8px}
+.reel-item strong{font-size:10.5px}
+.reel-item span{font:9px ui-monospace,monospace;color:#ffb86b;white-space:nowrap}
+.reel-item p{font-size:9.5px;line-height:1.6;color:#aab9cd;margin:0}
+.reel-item .button.small{justify-self:start;padding:6px 9px;font-size:9px;min-height:0}
+.field-reel{margin-top:14px}
+.full-classification{margin-top:14px}
+.full-classification>summary{cursor:pointer;font-size:9px;letter-spacing:.8px;color:#9aa8bb;padding:8px 0}
+.full-classification .standings{margin:6px 0}
+.full-classification .standings>div{padding:6px 8px}
+
+/* Live chat: the right-hand column during a race. */
+.workspace.race-mode:not(.demo-mode) .intel-panel{display:block;padding:0;overflow:hidden}
+.race-chat{display:flex;flex-direction:column;height:clamp(500px,calc(100dvh - 390px),740px);padding:14px}
+.chat-header{display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.chat-header strong{font:700 13px var(--display)}
+.chat-header small{margin-left:auto;font-size:9px;color:#8191a8}
+.chat-messages{flex:1;overflow-y:auto;padding:8px 0;display:flex;flex-direction:column;gap:2px;scrollbar-width:thin}
+.chat-msg{display:flex;gap:6px;align-items:baseline;font-size:11px;line-height:1.5;padding:3px 4px;border-radius:3px;margin:0;color:#d8e2f0;overflow-wrap:anywhere}
+.chat-msg time{flex:none;font:8px ui-monospace,monospace;color:#647a98}
+.chat-msg b{flex:none;font-weight:800;color:var(--driver)}
+.chat-msg.you{background:#3a2030}
+.chat-msg.control{color:#aab9cd;font-size:10px;background:#18212e}
+.chat-msg.control.yellow{color:#ffe08a}
+.chat-msg.control.red{color:#ff9b8f;background:#2e1a1a}
+.chat-msg.control.purple{color:#cdb2ff}
+.chat-msg.control.gain{color:#7bd8be}
+.chat-msg.control.loss{color:#ffab9a}
+.chat-reactions{display:flex;gap:5px;padding:8px 0 6px;border-top:1px solid var(--line)}
+.chat-reactions button{flex:1;min-height:30px;font-size:13px;background:#18212e;border:1px solid #2c3a50;border-radius:3px;color:#e3ebf6}
+.chat-reactions button:hover{background:#22324a}
+.chat-form{display:flex;gap:6px}
+.chat-form input{flex:1;min-width:0;font:inherit;font-size:12px;color:#edf2fa;background:#0f1622;border:1px solid #33435a;border-radius:3px;padding:8px 9px}
+.chat-form input:focus{outline:2px solid #ff6c7b;outline-offset:1px}
+.chat-form button{font-size:11px;font-weight:700;padding:0 12px;background:#f03643;color:#fff;border-radius:3px}
+.chat-note{font-size:8px;color:#6d82a0;margin-top:6px}
+@media(max-width:1200px){
+  .race-chat{height:320px}
+}
+@media(max-width:640px){
+  .race-chat{height:300px}
+  .chat-msg{font-size:12px}
+  .race-callout{top:178px;max-width:calc(100% - 20px)}
+  .race-callout>strong{white-space:normal;font-size:11px}
+  .incident-banner strong{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){.race-callout,.ers-button.attack:not(:disabled),.map-pin.active{animation:none}}

@@ -3,22 +3,27 @@ import '@fontsource-variable/space-grotesk';
 import './styles.css';
 import './f1.css';
 import './engineering.css';
+import './garage.css';
+import './broadcast.css';
+import './layout.css';
 import { PARTS, RACE_LAPS, RACE_PLAYBACK_MS } from '../shared/content.js';
 import { updateRaceBroadcast, renderBroadcastTools, resetRaceBroadcast } from './ui/race-ui.js';
-import { renderEngineering, partDetailsDialog, incidentLabDialog, partAvailability } from './ui/engineering-ui.js';
+import { renderEngineering, animateSpecs, partDetailsDialog, incidentLabDialog, partAvailability } from './ui/engineering-ui.js';
 import { createAssemblyInteraction } from './ui/assembly.js';
-import { createIncidentDemo } from '../shared/race.js';
-import { INCIDENTS } from '../shared/engineering.js';
+import { createIncidentDemo, incidentImpact } from '../shared/race.js';
+import { INCIDENTS, incidentFixes } from '../shared/engineering.js';
 import { createLocalSession } from './adapters/local-session.js';
 import { createWorkshop } from './scene/workshop.js';
-import { renderShell, renderParts, renderIntel, renderStats, renderActions, renderSteps } from './ui/render.js';
+import { renderShell, renderParts, renderIntel, renderActions, renderSteps } from './ui/render.js';
 import { briefingDialog, helpDialog, predictionWarningDialog, profileDialog, roundConceptDialog, seasonDialog } from './ui/dialogs.js';
 import { icon } from './ui/icons.js';
+import { sendPlayerMessage } from './ui/race-chat.js';
+import { storyChapters } from '../shared/story.js';
 
 const app = document.querySelector('#app');
 app.innerHTML = renderShell();
 const session = createLocalSession();
-const ui = { category: 'wheels', intelTab: 'clues', guess: null, view: 'rover', busy: false, scanning: false, runLabel: '', raceTelemetry: null, armedPart: null, demo: null, paused: false, playbackSpeed: 1 };
+const ui = { category: 'wheels', viewChapter: null, currentChapter: null, suggested: new Set(), guess: null, view: 'rover', busy: false, scanning: false, runLabel: '', raceTelemetry: null, armedPart: null, demo: null, paused: false, playbackSpeed: 1 };
 const scene = createWorkshop(document.querySelector('#scene'));
 const dialog = document.querySelector('#dialog');
 let toastTimer, finishRun = null, runToken = 0, scanToken = 0, liveRace = null;
@@ -34,21 +39,22 @@ function closeDialog() { dialog.close(); }
 function setView(view) {
   ui.view = view; scene.setView(view);
   document.querySelectorAll('[data-action="view"]').forEach(button => { const selected = button.dataset.view === view; button.classList.toggle('selected', selected); button.setAttribute('aria-pressed', selected); button.disabled = ui.busy; });
-  document.querySelector('.scene-number').hidden = view !== 'rover';
   document.querySelector('#scene-hint').innerHTML = `${icon('eye')} ${view === 'rover' ? 'DRAG TO LOOK AROUND' : 'DUNE VALLEY CIRCUIT / BROADCAST VIEW'}`;
 }
 function render() {
   const state = session.getSnapshot();
-  const bonusOpen = document.querySelector('.optional-puzzle')?.open;
   liveRace = state.race;
   const focused = document.activeElement;
   const focusKey = focused?.dataset?.action ? { action: focused.dataset.action, id: focused.dataset.id, category: focused.dataset.category, tab: focused.dataset.tab, terrain: focused.dataset.terrain } : null;
   if(state.phase!=='race'||!document.querySelector('#live-standings'))document.querySelector('#parts-panel').innerHTML = renderParts(state, ui);
-  document.querySelector('#engineering-panel').innerHTML = renderEngineering(state);
-  document.querySelector('#garage-driver-name').textContent = state.profile.name;
-  document.querySelector('#intel-panel').innerHTML = renderIntel(state, ui);
-  if (bonusOpen && document.querySelector('.optional-puzzle')) document.querySelector('.optional-puzzle').open = true;
-  document.querySelector('#stats').innerHTML = renderStats(state);
+  // Rebuild the stats only when the car changes, so the bars get to finish their animation.
+  const statsKey = JSON.stringify(state.build);
+  if (statsKey !== ui.statsKey) { ui.statsKey = statsKey; const panel = document.querySelector('#engineering-panel'); panel.innerHTML = renderEngineering(state); animateSpecs(panel); }
+  // When the story moves to a new chapter, show it; the player can still click back to earlier ones.
+  const current = storyChapters(state).find(chapter => chapter.status === 'current')?.id ?? null;
+  if (current !== ui.currentChapter) { ui.currentChapter = current; ui.viewChapter = null; }
+  // The live chat keeps its messages and half-typed input across re-renders.
+  if (state.phase !== 'race' || !document.querySelector('#race-chat')) document.querySelector('#intel-panel').innerHTML = renderIntel(state, ui);
   document.querySelector('#action-bar').innerHTML = renderActions(state, ui);
   document.querySelector('#steps').innerHTML = renderSteps(state);
   document.querySelector('#profile-label').textContent = state.profile.name;
@@ -57,7 +63,7 @@ function render() {
     : state.phase === 'adjust'
       ? ['THE FINAL TUNE-UP', 'A little feedback. A better build.', 'Your qualifying run is in. Change up to two slots, then make it count.']
       : state.phase === 'race'
-        ? ['THE GRAND PRIX', 'Let your build do the talking.', 'Eight laps. Four minutes. Watch your engineering come alive.']
+        ? ['THE GRAND PRIX', 'Let your build do the talking.', 'Eight laps. A full grid. Watch your engineering come alive.']
         : ['THE PADDOCK', 'Your race starts in the garage.', 'Read the circuit. Dial in your setup. Earn your place on the grid.'];
   ['eyebrow', 'heading', 'subheading'].forEach((id, i) => { document.getElementById(id).textContent = copy[i]; });
   document.querySelector('#rover-title').innerHTML = `CAR 07 <span>/ ${state.phase === 'practice' ? 'PERFORMANCE LAB' : state.phase === 'adjust' ? 'THE FINAL TUNE-UP' : 'DUNE VALLEY'}</span>`;
@@ -65,7 +71,6 @@ function render() {
   document.querySelector('.workspace').classList.toggle('race-mode', state.phase === 'race' || !!ui.demo);
   document.body.classList.toggle('race-active', state.phase === 'race' || !!ui.demo);
   document.querySelector('.workspace').classList.toggle('demo-mode', !!ui.demo);
-  document.querySelector('.driver-identity').disabled = ui.busy;
   scene.setAssembly(state, ui.armedPart);
   scene.setBuild(state.build);
   scene.setKnowledge?.(state.runs.length > 0 || state.phase !== 'practice');
@@ -77,19 +82,30 @@ function render() {
 }
 session.subscribe(render);
 render();
+setView('rover');
+
+// The parts box scrolls as a whole; once the player scrolls, its header compacts to give the parts more room.
+const partsPanel = document.querySelector('#parts-panel');
+function compactShelf() {
+  const scrolled = partsPanel.scrollHeight > partsPanel.clientHeight + 1 ? partsPanel.scrollTop : -partsPanel.getBoundingClientRect().top;
+  if (scrolled > 24) partsPanel.classList.add('compact'); else if (scrolled < 4) partsPanel.classList.remove('compact');
+}
+partsPanel.addEventListener('scroll', compactShelf, { passive: true });
+addEventListener('scroll', compactShelf, { passive: true });
 
 function armPart(id) {
   if(id && (ui.scanning || partAvailability(session.getSnapshot(),id,ui.busy)))return;
   ui.armedPart=id;scene.setArmedPart(id);
   document.querySelectorAll('[data-action="pick-part"]').forEach(button=>{button.classList.toggle('picked-up',button.dataset.id===id);button.setAttribute('aria-pressed',String(button.dataset.id===id));});
-  const instruction=document.querySelector('#assembly-instruction');
-  if(instruction)instruction.textContent=id?`${PARTS[id].name} picked up. Drop on the car or tap its highlighted fitting point.`:'Drag a part onto your car. Or tap a part, then its fitting point.';
-  if(id){setView('rover');if(matchMedia('(max-width: 640px)').matches)document.querySelector('.scene-card').scrollIntoView({behavior:'instant',block:'center'});}
+  const hint=document.querySelector('#scene-hint');
+  if(id){setView('rover');hint.innerHTML=`${icon('box')} ${PARTS[id].name.toUpperCase()} PICKED UP · TAP ITS FITTING POINT`;}
+  else if(ui.view==='rover')hint.innerHTML=`${icon('eye')} DRAG TO LOOK AROUND`;
+  if(id){if(matchMedia('(max-width: 640px)').matches)document.querySelector('.scene-card').scrollIntoView({behavior:'instant',block:'center'});}
 }
 function fitPart(id) {
   if(ui.scanning){showToast('Let the scan finish before fitting a part.');return;}
   const result=dispatch({type:'SET_PART',id});
-  if(result.ok){ui.armedPart=null;scene.setArmedPart(null);if(dialog.open)closeDialog();setView('rover');render();showToast(`${PARTS[id].name} fitted. “How your car will race” explains the effect below.`);}
+  if(result.ok){ui.armedPart=null;ui.suggested.clear();scene.setArmedPart(null);if(dialog.open)closeDialog();setView('rover');render();showToast(`${PARTS[id].name} fitted. Check the new specs under the car.`);}
 }
 createAssemblyInteraction({onPick:armPart,onFit:fitPart,getArmed:()=>ui.armedPart,canFit:id=>!ui.scanning&&!partAvailability(session.getSnapshot(),id,ui.busy)});
 
@@ -104,7 +120,7 @@ function beginAnimation(entries,label,next,duration=6500,demoRace=null){
   overlay.innerHTML=racing?`<div class="start-sequence"><span>YOUR DRIVER · ${session.getSnapshot().profile.name.replaceAll('&','&amp;').replaceAll('<','&lt;')}</span><div class="start-lights">${'<i></i>'.repeat(5)}</div><strong>HOLD YOUR BREATH.</strong></div><div class="broadcast-hud"><span class="live-tag"><span class="live-dot"></span><span id="race-chapter">STARTING GRID</span></span><div><small>RACE LAP</small><strong id="race-lap">01 / ${String(RACE_LAPS).padStart(2,'0')}</strong></div><div><small>YOUR POSITION</small><strong id="your-position">—</strong></div><div><small>RACE TIME</small><strong id="race-clock">0:00.0</strong></div></div><div class="run-progress"><i></i></div>`:`<div><span class="live-dot"></span><strong>${label}</strong><span id="run-progress-label">0%</span></div><div class="run-progress"><i></i></div>`;
   if(demoRace)overlay.querySelector('.start-sequence').hidden=true;
   finishRun=()=>{
-    if(token!==runToken)return;runToken++;finishRun=null;ui.busy=false;overlay.hidden=true;tools.hidden=true;caption.hidden=true;document.querySelector('#corner-readout').hidden=true;document.querySelector('#incident-banner').hidden=true;
+    if(token!==runToken)return;runToken++;finishRun=null;ui.busy=false;overlay.hidden=true;tools.hidden=true;caption.hidden=true;document.querySelector('#corner-readout').hidden=true;document.querySelector('#incident-banner').hidden=true;document.querySelector('#race-callout').hidden=true;
     next();render();document.querySelectorAll('[data-action="view"]').forEach(button=>button.disabled=false);
   };
   scene.animateRun(entries,duration,()=>finishRun?.(),(progress,broadcast)=>{
@@ -138,23 +154,35 @@ function startRun(type, allowNoPrediction = false) {
   if (!result.ok) return;
   const updated = session.getSnapshot(), run = type === 'test' ? updated.runs.at(-1) : updated.qualifying;
   beginAnimation([{ id: 'you', name: updated.profile.name, build: updated.build, result: run, color: '#ff3b38' }], type === 'test' ? `Practice run 0${updated.runs.length}` : 'Qualifying lap', () => {
-    ui.intelTab = 'runs';
+    ui.viewChapter = null; // show the new report in the current chapter
     if (type === 'qualify') dispatch({ type: 'FINISH_QUALIFY' });
     setView('rover');
     showToast(type === 'test' ? 'Run complete. Your report shows what to try next.' : 'Benchmark set. You can now adjust two part slots.');
   });
 }
-function reset() {
+// Replays an incident from the finished race. The race is deterministic, so the clip is exact.
+function startReplay(id, distance) {
+  const race = session.getSnapshot().race, car = race?.field.find(entry => entry.id === id);
+  const event = car?.incidents.find(item => Math.abs(item.distance - Number(distance)) < 1e-9);
+  if (ui.busy || !event) return;
+  const impact = incidentImpact(race, id, event), from = Math.max(0, impact.start - 3), to = Math.min(race.maxTime, impact.end + 2);
+  ui.busy = true; ui.runLabel = `Replay · ${car.name}`; const token = ++runToken; setView('course'); render();
+  const caption = document.querySelector('#demo-caption'); caption.hidden = false; caption.classList.add('replay-caption');
+  caption.innerHTML = `<span>REPLAY · LAP ${event.lap}</span><strong>${car.name.replaceAll('&', '&amp;').replaceAll('<', '&lt;')} · ${event.title}</strong><p>${event.cause}</p><small>${impact.retired ? 'Race-ending failure' : `Cost ${event.loss.toFixed(1)}s · P${impact.before} → P${impact.after}`}</small>`;
+  finishRun = () => { if (token !== runToken) return; runToken++; finishRun = null; ui.busy = false; caption.hidden = true; caption.classList.remove('replay-caption'); setView('rover'); render(); };
+  scene.animateRun(race.field, (to - from) * 1000 * RACE_PLAYBACK_MS / race.maxTime, () => finishRun?.(), null, { getRace: () => race, replay: { from, to, focus: id } });
+}
+function reset(build = null) {
   if (ui.busy) return;
-  scanToken++; ui.scanning = false; ui.guess = null; ui.category = 'wheels'; ui.intelTab = 'clues'; ui.raceTelemetry = null; ui.armedPart = null; ui.demo = null;
-  session.reset(); setView('rover'); closeDialog(); showToast('Fresh car, fresh possibilities. Your two practice runs are ready.');
+  scanToken++; ui.scanning = false; ui.guess = null; ui.category = 'wheels'; ui.viewChapter = null; ui.suggested.clear(); ui.raceTelemetry = null; ui.armedPart = null; ui.demo = null;
+  session.reset(build); setView('rover'); closeDialog(); showToast('Fresh car, fresh possibilities. Your two practice runs are ready.');
 }
 
 document.addEventListener('click', async event => {
   const button = event.target.closest('[data-action]'); if (!button || button.disabled) return;
   const { action } = button.dataset;
   if (action === 'home') event.preventDefault();
-  if (ui.busy && !['skip-run', 'boost', 'help', 'camera', 'close-dialog', 'race-camera', 'follow-incident', 'pause-race', 'race-speed', 'part-details', 'incident-lab', 'incident-info'].includes(action)) { showToast('Let this run finish, or skip its animation.'); return; }
+  if (ui.busy && !['skip-run', 'boost', 'help', 'camera', 'close-dialog', 'race-camera', 'follow-incident', 'pause-race', 'race-speed', 'part-details', 'incident-lab', 'incident-info', 'chat-react', 'view-chapter'].includes(action)) { showToast('Let this run finish, or skip its animation.'); return; }
   switch (action) {
     case 'home': case 'briefing': openDialog(briefingDialog()); break;
     case 'workshop': closeDialog(); document.querySelector('.workspace').scrollIntoView({ behavior: 'smooth', block: 'center' }); break;
@@ -181,12 +209,13 @@ document.addEventListener('click', async event => {
       if (token !== scanToken) break;
       ui.scanning = false; dispatch({ type: 'SCAN' }); break;
     }
-    case 'intel-tab': ui.intelTab = button.dataset.tab; render(); break;
+    case 'open-chapter': ui.viewChapter = button.dataset.chapter; render(); document.querySelector('#intel-panel').scrollIntoView({ behavior: 'smooth', block: 'start' }); break;
+    case 'view-chapter': ui.viewChapter = button.dataset.chapter; render(); break;
     case 'view': setView(button.dataset.view); break;
     case 'camera': scene.resetCamera(); break;
     case 'test': case 'qualify': startRun(action); break;
     case 'run-without-guess': closeDialog(); startRun(button.dataset.next, true); break;
-    case 'return-prediction': closeDialog(); ui.intelTab = 'clues'; render(); if(document.querySelector('.optional-puzzle'))document.querySelector('.optional-puzzle').open=true; document.querySelector('.prediction')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); document.querySelector('[data-action="guess"]')?.focus(); break;
+    case 'return-prediction': closeDialog(); ui.viewChapter = null; render(); document.querySelector('#intel-panel').scrollIntoView({ behavior: 'smooth', block: 'start' }); document.querySelector('[data-action="guess"], [data-action="scan"]')?.focus({ preventScroll: true }); break;
     case 'race': {
       if (ui.scanning || !dispatch({ type: 'RACE' }).ok) break;
       const state = session.getSnapshot();
@@ -200,7 +229,17 @@ document.addEventListener('click', async event => {
     case 'race-speed': ui.playbackSpeed=ui.playbackSpeed===1?2:1;scene.setPlayback({speed:ui.playbackSpeed});button.textContent=`${ui.playbackSpeed}×`; break;
     case 'boost': if (ui.raceTelemetry?.started && !ui.paused) dispatch({ type: 'BOOST', elapsed: ui.raceTelemetry.elapsed }); break;
     case 'skip-run': scene.finishAnimation(); break;
+    case 'chat-react': { const error = sendPlayerMessage(button.dataset.text, { color: '#ff3b38' }); if (error) showToast(error); break; }
     case 'reset': reset(); break;
+    case 'rebuild': reset(session.getSnapshot().build); showToast('Same car, fresh round. Apply what the race taught you.'); break;
+    case 'replay': startReplay(button.dataset.driverId, button.dataset.distance); break;
+    case 'fix-risk': {
+      const fixes = incidentFixes(session.getSnapshot().build, button.dataset.type);
+      if (!fixes.length) { showToast('No single affordable swap removes this risk. Try changing two parts.'); break; }
+      ui.category = fixes[0].slot; ui.suggested = new Set(fixes.map(fix => fix.id)); render();
+      document.querySelector('.parts-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      showToast(`Highlighted: ${fixes.map(fix => fix.name).join(' or ')}. Each one removes this risk.`); break;
+    }
   }
 });
 document.addEventListener('keydown', event => {
@@ -208,6 +247,12 @@ document.addEventListener('keydown', event => {
   if (session.getSnapshot().phase === 'race') { event.preventDefault(); document.querySelector('[data-action="boost"]')?.click(); }
 });
 document.addEventListener('submit', event => {
+  if (event.target.id === 'chat-form') {
+    event.preventDefault(); const input = event.target.querySelector('#chat-input');
+    const error = sendPlayerMessage(input.value, { color: '#ff3b38' });
+    if (error) showToast(error); else input.value = '';
+    return;
+  }
   if (event.target.id !== 'profile-form') return;
   event.preventDefault(); const form = new FormData(event.target);
   if (session.getSnapshot().phase !== 'practice') session.reset();

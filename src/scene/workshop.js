@@ -4,7 +4,7 @@ import { box, cylinder, disposeGroup, material, batchStaticGeometry } from './ge
 import { makeRaceCar } from './racecar.js';
 import { makeCircuit } from './circuit.js';
 import { sampleRace } from '../../shared/race.js';
-import { PARTS, SLOT_LABELS } from '../../shared/content.js';
+import { PARTS, SLOT_LABELS, driverCode } from '../../shared/content.js';
 import { makeCarEffects } from './effects.js';
 
 export function createWorkshop(container) {
@@ -39,9 +39,11 @@ export function createWorkshop(container) {
   const landmarkLayer=document.createElement('div');landmarkLayer.className='track-landmarks';container.append(landmarkLayer);
   const landmarkLabels=circuit.landmarks.map(mark=>{const element=document.createElement('span');element.innerHTML=`<b>${mark.name}</b><small>${mark.label}</small>`;landmarkLayer.append(element);return {...mark,element};});
   const map=document.createElement('div');map.className='circuit-map';container.append(map);
-  map.innerHTML=`<span>CIRCUIT POSITION</span><svg viewBox="-23 -17 46 34" aria-label="Circuit map"><path d="M${circuit.mapPoints.map(point=>point.join(',')).join('L')}Z"/><g class="map-cars"></g></svg>`;
+  map.innerHTML=`<span>CIRCUIT POSITION</span><svg viewBox="-23 -17 46 34" aria-label="Circuit map"><path d="M${circuit.mapPoints.map(point=>point.join(',')).join('L')}Z"/><g class="map-pins"></g><g class="map-cars"></g></svg>`;
+  const pipFrame=document.createElement('div');pipFrame.className='pip-frame';pipFrame.hidden=true;container.append(pipFrame);
+  const pipCamera=new THREE.PerspectiveCamera(36,1.6,.1,350);
   const fittingLines=document.createElementNS('http://www.w3.org/2000/svg','svg');fittingLines.classList.add('fitting-lines');fittings.append(fittingLines);
-  const anchors={wheels:[1.5,.8,1.2],power:[-1.4,1.2,0],body:[-2.12,1.6,0],sensor:[-.85,1.6,0]};
+  const anchors={wheels:[1.5,.8,1.2],power:[-1.4,1.2,0],body:[-2.12,1.6,0],sensor:[-.85,1.9,0]};
   const fittingButtons=Object.entries(anchors).map(([slot,anchor],i)=>{
     const button=document.createElement('button');button.className='assembly-target';button.dataset.action='fit-target';button.dataset.fitSlot=slot;
     button.innerHTML=`<b>0${i+1}</b><span><small>${SLOT_LABELS[slot]}</small><strong></strong></span><em>+</em>`;fittings.append(button);
@@ -50,6 +52,8 @@ export function createWorkshop(container) {
     return {slot,anchor,button,line,dot};
   });
   let lastFrame=-100,car=null,lastBuild='',view='rover',active=null,actors=[],disposed=false,frame,armed=null,raceCamera='overview',directorFocus='you',directorUntil=0;
+  // Broadcast direction: every incident is logged, queued for the main camera, and pinned on the minimap.
+  const MIN_HOLD=4,incidentLog=new Map();let directorIncident=null,pip=null,lastMain=null;
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const vector=new THREE.Vector3(),followTarget=new THREE.Vector3();
   function resetCamera(){
@@ -58,7 +62,8 @@ export function createWorkshop(container) {
     else{const ratio=container.clientWidth/container.clientHeight,scale=Math.max(1,.88/ratio);camera.position.set(33*scale,40*scale,45*scale);controls.target.set(-1,.3,0);}
     controls.enabled=true;controls.update();renderer.shadowMap.needsUpdate=true;
   }
-  function setView(next){view=next;garage.visible=next==='rover';circuit.group.visible=next==='course';labelLayer.hidden=next!=='course';fittings.hidden=next!=='rover';landmarkLayer.hidden=next!=='course';map.hidden=next!=='course';resetCamera();}
+  // Only a real change of view resets the camera; fitting parts keeps the player's chosen angle.
+  function setView(next){const changed=next!==view;view=next;garage.visible=next==='rover';circuit.group.visible=next==='course';labelLayer.hidden=next!=='course';fittings.hidden=next!=='rover';landmarkLayer.hidden=next!=='course';map.hidden=next!=='course';if(changed)resetCamera();}
   function setBuild(build){if(JSON.stringify(build)===lastBuild)return;lastBuild=JSON.stringify(build);if(car)disposeGroup(car);car=makeRaceCar(build);car.position.y=.14;garage.add(car);renderer.shadowMap.needsUpdate=true;}
   function setAssembly(state,part){
     for(const item of fittingButtons){item.button.querySelector('strong').textContent=PARTS[state.build[item.slot]].name;item.button.disabled=!['practice','adjust'].includes(state.phase)||(item.slot==='sensor'&&state.sensorLocked);}
@@ -70,7 +75,7 @@ export function createWorkshop(container) {
     if(slot)container.dataset.fitSlot=slot;else delete container.dataset.fitSlot;
     for(const item of fittingButtons){item.button.classList.toggle('matching',item.slot===slot);item.button.setAttribute('aria-label',slot===item.slot?`Fit ${PARTS[part].name} to car`:`Inspect ${SLOT_LABELS[item.slot]} fitting point`);}
   }
-  function clearRunners(){while(runners.children.length)disposeGroup(runners.children[0]);labelLayer.querySelectorAll('.driver-label').forEach(label=>label.remove());connectorLayer.replaceChildren();actors=[];map.querySelector('.map-cars').replaceChildren();}
+  function clearRunners(){while(runners.children.length)disposeGroup(runners.children[0]);labelLayer.querySelectorAll('.driver-label').forEach(label=>label.remove());connectorLayer.replaceChildren();actors=[];map.querySelector('.map-cars').replaceChildren();map.querySelector('.map-pins').replaceChildren();incidentLog.clear();directorIncident=null;pip=null;pipFrame.hidden=true;directorFocus='you';directorUntil=0;}
   function animateRun(entries,duration,done,onProgress,options={}){
     clearRunners();
     actors=entries.map((entry,index)=>{
@@ -78,22 +83,24 @@ export function createWorkshop(container) {
       const effects=makeCarEffects(mesh);
       const label=document.createElement('div');label.className=`driver-label ${entry.id==='you'?'is-you':''}`;label.dataset.driver=entry.id||'you';label.style.setProperty('--team-color',entry.color||'#ff3b38');
       const position=document.createElement('b');position.textContent=`P${entry.grid||index+1}`;
-      const name=document.createElement('span');name.textContent=entry.name||'You';label.title=entry.name||'You';label.append(position,name);
+      const name=document.createElement('span');name.textContent=entry.name||'You';label.title=entry.name||'You';
+      const code=document.createElement('i');code.className='code';code.textContent=driverCode(entry);label.append(position,code,name);
       if(entry.id==='you'){const tag=document.createElement('em');tag.textContent=options.demo?'DEMO':'YOU';label.append(tag);}
       labelLayer.append(label);
       const connector=document.createElementNS('http://www.w3.org/2000/svg','line');connector.setAttribute('stroke',entry.color||'#ff3b38');connectorLayer.append(connector);
       const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');dot.setAttribute('r',entry.id==='you'?1:.7);dot.setAttribute('fill',entry.color||'#ff3b38');dot.setAttribute('stroke',entry.id==='you'?'#fff':'#111');dot.setAttribute('stroke-width','.2');map.querySelector('.map-cars').append(dot);
-      return {mesh,effects,entry,label,position,connector,dot,lane:(index%2?1:-1)*.47};
+      // Four lanes spread a large field across the track; small fields keep two.
+      return {mesh,effects,entry,label,position,connector,dot,lane:entries.length>6?[-.66,-.22,.22,.66][index%4]:(index%2?1:-1)*.47};
     });
-    active={playhead:0,lastTick:performance.now(),duration:options.getRace?duration:reducedMotion?600:duration,done,onProgress,getRace:options.getRace,countdown:options.getRace?(options.demo?800:6500):0,lastUpdate:-1,paused:false,speed:1,demo:!!options.demo};
+    active={playhead:0,lastTick:performance.now(),duration:options.getRace?duration:reducedMotion?600:duration,done,onProgress,getRace:options.getRace,countdown:options.replay?0:options.getRace?(options.demo?800:6500):0,lastUpdate:-1,paused:false,speed:1,demo:!!options.demo,replay:options.replay||null,elapsed:0};
     setView('course');
-    if(options.demo)setRaceCamera('you');else if(options.getRace)setRaceCamera('director');
+    if(options.replay)setRaceCamera(`driver:${options.replay.focus}`);else if(options.demo)setRaceCamera('you');else if(options.getRace)setRaceCamera('director');
   }
   function setPlayback({paused,speed}={}){if(!active)return;if(paused!==undefined)active.paused=paused;if(speed!==undefined)active.speed=speed===2?2:1;active.lastTick=performance.now();}
   function setRaceCamera(mode){raceCamera=mode;if(mode==='overview')resetCamera();else controls.enabled=false;}
   function placeActor(actor,row,elapsed){
     const {distance,finished,retired,position,grid,incident}=row;
-    const gridOffset=(.014+Math.floor((grid-1)/2)*.021)*Math.max(0,1-elapsed/3);
+    const gridOffset=(.014+Math.floor((grid-1)/2)*(actors.length>6?.011:.021))*Math.max(0,1-elapsed/3);
     const t=finished ? .015+(position-1)*.018 : ((distance-gridOffset)%1+1)%1;
     const point=circuit.curve.getPointAt(Math.max(0,Math.min(.999999,t))),tangent=circuit.curve.getTangentAt(Math.max(0,Math.min(.999999,t)));
     const sway=incident?Math.sin(incident.progress*Math.PI):0;
@@ -105,7 +112,7 @@ export function createWorkshop(container) {
     actor.mesh.position.set(point.x+tangent.z*lateral,point.y+.04+(incident?.type==='contact'?sway*.12:0),point.z-tangent.x*lateral);
     actor.mesh.rotation.y=-Math.atan2(tangent.z,tangent.x)+(incident?.type==='understeer'?sway*.28:incident?.type==='wheelspin'?Math.sin(incident.progress*Math.PI*3)*.15:0);
     actor.mesh.userData.wheels.forEach(wheel=>{wheel.rotation.z=finished||retired?0:-elapsed*(incident?.type==='wheelspin'?8:4);});
-    actor.effects.update(incident,elapsed,reducedMotion);actor.position.textContent=retired?'OUT':`P${position}`;actor.dot.setAttribute('cx',point.x);actor.dot.setAttribute('cy',point.z);actor.dot.setAttribute('opacity',retired?'.4':'1');
+    actor.effects.update(incident,elapsed,reducedMotion,row.warning);actor.position.textContent=retired?'OUT':`P${position}`;actor.dot.setAttribute('cx',point.x);actor.dot.setAttribute('cy',point.z);actor.dot.setAttribute('opacity',retired?'.4':'1');
     actor.label.classList.toggle('boosting',!!row.boosting);actor.label.classList.toggle('has-incident',!!incident);
     actor.row=row;
   }
@@ -132,6 +139,10 @@ export function createWorkshop(container) {
       const x=Math.min(...points.map(point=>point.x)),y=Math.min(...points.map(point=>point.y));
       return {x,y,w:Math.max(...points.map(point=>point.x))-x,h:Math.max(...points.map(point=>point.y))-y};
     });
+    // In a big field only the cars that matter right now get a full nameplate; the rest get a code chip.
+    const featured=new Set(['you',focusedActor()?.entry.id,pip?.entry.id]);
+    for(const actor of actors)if(actor.row?.incident&&!actor.row.retired)featured.add(actor.entry.id);
+    for(const actor of actors)actor.label.classList.toggle('compact',actors.length>8&&!featured.has(actor.entry.id));
     const positions=actors.map(actor=>{const point=actor.mesh.position.clone();point.y+=.8;return{actor,...project(point)};}).sort((a,b)=>a.y-b.y);
     for(const {actor,x,y,z} of positions){
       const visible=z>=-1&&z<=1&&x>-20&&x<width+20&&y>=0&&y<height;
@@ -150,21 +161,68 @@ export function createWorkshop(container) {
     }
   }
   function layoutLandmarks(){if(view!=='course')return;for(const mark of landmarkLabels){const point=project(mark.position);mark.element.hidden=point.z<0||point.z>1||point.x<0||point.x>container.clientWidth||point.y<120||point.y>container.clientHeight-50;mark.element.style.transform=`translate(${point.x-20}px,${point.y}px)`;}}
-  function updateCamera(){
-    if(view!=='course'||raceCamera==='overview'||!actors.length)return;
-    if(raceCamera==='director'&&active){const elapsed=active.playhead/1000;const incident=actors.find(item=>item.row?.incident?.type==='fire'&&!item.row?.retired)||actors.find(item=>item.row?.incident&&!item.row?.retired);if(incident&&directorFocus!==incident.entry.id){directorFocus=incident.entry.id;directorUntil=elapsed+8;}else if(elapsed>directorUntil){const sorted=[...actors].filter(item=>!item.row?.retired).sort((a,b)=>(a.row?.position||0)-(b.row?.position||0));const battle=sorted.find((item,i)=>i>0&&(item.row.gap-sorted[i-1].row.gap)<1.2);directorFocus=battle?.entry.id||'you';directorUntil=elapsed+10;}}
-    const actor=raceCamera==='director'?actors.find(item=>item.entry.id===directorFocus):raceCamera==='you'?actors.find(item=>item.entry.id==='you'):raceCamera.startsWith('driver:')?actors.find(item=>item.entry.id===raceCamera.slice(7)):actors.find(item=>item.row?.position===1);
-    if(!actor)return;followTarget.copy(actor.mesh.position);
-    if(raceCamera==='battle'){
-      const second=actors.find(item=>item.row?.position===2);
-      if(second&&second.mesh.position.distanceTo(actor.mesh.position)<8)followTarget.lerp(second.mesh.position,.5);
+  const incidentKey=actor=>actor.row?.incident&&!actor.row.retired?`${actor.entry.id}:${actor.row.incident.distance}`:null;
+  function trackIncidents(elapsed){
+    const pins=map.querySelector('.map-pins');
+    for(const actor of actors){
+      const key=incidentKey(actor);
+      if(key&&!incidentLog.has(key)){
+        const pin=document.createElementNS('http://www.w3.org/2000/svg','circle');pin.setAttribute('r','1.1');pin.setAttribute('cx',actor.mesh.position.x);pin.setAttribute('cy',actor.mesh.position.z);
+        pin.setAttribute('class',`map-pin active ${actor.row.incident.type==='fire'?'fire':''}`);pins.append(pin);
+        incidentLog.set(key,{key,actor,since:elapsed,shown:false,pin,priority:actor.row.incident.type==='fire'?0:actor.entry.id==='you'?1:2});
+      }
     }
-    const distance=active?.demo?8:actor.row?.incident?.type==='fire'?9:raceCamera==='battle'?16:12;
+    for(const item of incidentLog.values())item.pin.classList.toggle('active',incidentKey(item.actor)===item.key);
+  }
+  function directorPick(elapsed){
+    const current=incidentLog.get(directorIncident);
+    if(current&&(incidentKey(current.actor)===current.key||elapsed-current.focusAt<MIN_HOLD))return current.actor.entry.id;
+    const next=[...incidentLog.values()].filter(item=>!item.shown&&elapsed-item.since<6).sort((a,b)=>a.priority-b.priority||a.since-b.since)[0];
+    if(next){next.shown=true;next.focusAt=elapsed;directorIncident=next.key;return next.actor.entry.id;}
+    directorIncident=null;
+    // Cut to a car just before its incident, so the moment itself is on screen.
+    const warned=actors.find(item=>item.entry.id==='you'&&item.row?.warning)||actors.find(item=>item.row?.warning?.type==='fire');
+    if(warned)return warned.entry.id;
+    if(elapsed>directorUntil){
+      const sorted=[...actors].filter(item=>!item.row?.retired).sort((a,b)=>(a.row?.position||0)-(b.row?.position||0));
+      const you=sorted.findIndex(item=>item.entry.id==='you');
+      const battle=sorted.find((item,i)=>i>0&&(i<=2||Math.abs(i-you)<=1)&&(item.row.gap-sorted[i-1].row.gap)<1);
+      directorFocus=battle?.entry.id||'you';directorUntil=elapsed+10;
+    }
+    return directorFocus;
+  }
+  function focusedActor(){
+    return raceCamera==='you'?actors.find(item=>item.entry.id==='you'):raceCamera.startsWith('driver:')?actors.find(item=>item.entry.id===raceCamera.slice(7)):raceCamera==='director'?actors.find(item=>item.entry.id===directorFocus):null;
+  }
+  function updateCamera(){
+    if(view!=='course'||!actors.length)return;
+    const live=active&&!active.demo&&!active.replay;
+    if(live)trackIncidents(active.elapsed);
+    if(live&&raceCamera==='director')directorFocus=directorPick(active.elapsed);
+    // A second incident at the same moment goes into a picture-in-picture inset.
+    const main=focusedActor();
+    pip=live&&raceCamera!=='overview'?[...incidentLog.values()].filter(item=>incidentKey(item.actor)===item.key&&item.actor!==main).sort((a,b)=>a.priority-b.priority)[0]?.actor||null:null;
+    if(raceCamera==='overview'||!main)return;
+    followTarget.copy(main.mesh.position);
+    const distance=active?.demo?8:active?.replay?7:main.row?.incident?.type==='fire'?9:12;
     const offset=new THREE.Vector3(distance*.65,distance*.85,distance);
-    camera.position.lerp(followTarget.clone().add(offset),.13);controls.target.lerp(followTarget,.13);camera.lookAt(controls.target);
+    // Like a TV director: cut to a new car instantly, then follow it smoothly.
+    const cut=main!==lastMain;lastMain=main;
+    camera.position.lerp(followTarget.clone().add(offset),cut?1:.13);controls.target.lerp(followTarget,cut?1:.13);camera.lookAt(controls.target);
+  }
+  function renderPip(){
+    if(!pip||view!=='course'){pipFrame.hidden=true;return;}
+    const width=container.clientWidth,height=container.clientHeight,w=Math.round(Math.min(260,width*.34)),h=Math.round(w*.62),x=width-w-16,top=Math.min(150,height*.22);
+    pipCamera.aspect=w/h;pipCamera.updateProjectionMatrix();
+    pipCamera.position.copy(pip.mesh.position).add(new THREE.Vector3(4,5.5,6.5));pipCamera.lookAt(pip.mesh.position);
+    renderer.setScissorTest(true);renderer.setViewport(x,height-top-h,w,h);renderer.setScissor(x,height-top-h,w,h);renderer.render(scene,pipCamera);
+    renderer.setScissorTest(false);renderer.setViewport(0,0,width,height);
+    pipFrame.hidden=false;pipFrame.style.cssText=`left:${x}px;top:${top}px;width:${w}px;height:${h}px`;
+    const key=`${pip.entry.id}:${pip.row.incident.type}`;
+    if(pipFrame.dataset.key!==key){pipFrame.dataset.key=key;pipFrame.innerHTML=`<span>ALSO ON TRACK</span><strong>${driverCode(pip.entry)} · ${pip.row.incident.title}</strong>`;}
   }
   function finishAnimation(){if(!active)return;const current=active;active=null;
-    if(current.getRace){const race=current.getRace(),rows=sampleRace(race,race.maxTime+1);for(const actor of actors){placeActor(actor,rows.find(item=>item.id===actor.entry.id),race.maxTime);}current.onProgress?.(1,{rows,elapsed:race.maxTime,lights:0,started:true,paused:false,speed:current.speed});}
+    if(current.getRace&&!current.replay){const race=current.getRace(),rows=sampleRace(race,race.maxTime+1);for(const actor of actors){placeActor(actor,rows.find(item=>item.id===actor.entry.id),race.maxTime);}current.onProgress?.(1,{rows,elapsed:race.maxTime,lights:0,started:true,paused:false,speed:current.speed});}
     controls.enabled=true;current.done();
   }
   const observer=new ResizeObserver(()=>{const {width,height}=container.getBoundingClientRect();if(!width||!height)return;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();});observer.observe(container);
@@ -176,10 +234,11 @@ export function createWorkshop(container) {
       if(!current.paused)current.playhead+=delta*current.speed;
       const age=current.playhead,progress=Math.max(0,Math.min(1,(age-current.countdown)/current.duration));
       if(current.getRace){
-        const race=current.getRace(),elapsed=progress*race.maxTime,started=age>=current.countdown,rows=sampleRace(race,elapsed);
+        const race=current.getRace(),replay=current.replay,elapsed=replay?replay.from+progress*(replay.to-replay.from):progress*race.maxTime,started=!!replay||age>=current.countdown,rows=sampleRace(race,elapsed);
+        current.elapsed=elapsed;
         for(const actor of actors)placeActor(actor,rows.find(item=>item.id===actor.entry.id),elapsed);
-        if(now-current.lastUpdate>150){current.lastUpdate=now;renderer.shadowMap.needsUpdate=true;current.onProgress?.(progress,{rows,elapsed,started,lights:started?0:Math.min(5,Math.floor(age/1100)+1),paused:current.paused,speed:current.speed,demo:current.demo});}
-        if(started&&(progress>=1||rows.every(row=>row.finished||row.retired)))finishAnimation();
+        if(now-current.lastUpdate>150){current.lastUpdate=now;renderer.shadowMap.needsUpdate=true;current.onProgress?.(progress,{rows,elapsed,started,lights:started?0:Math.min(5,Math.floor(age/1100)+1),paused:current.paused,speed:current.speed,demo:current.demo,replay:!!replay,director:{focus:raceCamera==='director'?directorFocus:null,incident:!!directorIncident,pip:pip?.entry.id||null}});}
+        if(progress>=1||(!replay&&started&&rows.every(row=>row.finished||row.retired)))finishAnimation();
       }else{
         const entry=actors[0].entry;let left=progress*entry.result.time,distance=0;
         for(const segment of entry.result.segments){distance+=Math.min(1,left/segment.time)/3;left-=segment.time;if(left<=0)break;}
@@ -188,8 +247,8 @@ export function createWorkshop(container) {
         if(progress>=1)finishAnimation();
       }
     }
-    controls.update();updateCamera();camera.updateMatrixWorld();layoutFittings();layoutLandmarks();layoutLabels();renderer.render(scene,camera);container.dataset.ready='true';
+    controls.update();updateCamera();camera.updateMatrixWorld();layoutFittings();layoutLandmarks();layoutLabels();renderer.render(scene,camera);renderPip();container.dataset.ready='true';
   }
   frame=requestAnimationFrame(tick);
-  return {setBuild,setView,setAssembly,setArmedPart,setPlayback,setRaceCamera,resetCamera,animateRun,finishAnimation,setKnowledge:circuit.setKnowledge,dispose(){disposed=true;cancelAnimationFrame(frame);observer.disconnect();controls.dispose();disposeGroup(scene);renderer.dispose();labelLayer.remove();fittings.remove();landmarkLayer.remove();map.remove();}};
+  return {setBuild,setView,setAssembly,setArmedPart,setPlayback,setRaceCamera,resetCamera,animateRun,finishAnimation,setKnowledge:circuit.setKnowledge,dispose(){disposed=true;cancelAnimationFrame(frame);observer.disconnect();controls.dispose();disposeGroup(scene);renderer.dispose();labelLayer.remove();fittings.remove();landmarkLayer.remove();map.remove();pipFrame.remove();}};
 }

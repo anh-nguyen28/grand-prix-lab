@@ -1,29 +1,36 @@
-import { PARTS, COURSE } from './content.js';
+import { PARTS, COURSE, SLOTS } from './content.js';
 
 export function buildStats(build) {
-  const parts = Object.values(build).map(id => PARTS[id]);
-  return {
-    cost: parts.reduce((total, part) => total + part.cost, 0),
-    weight: parts.reduce((total, part) => total + part.weight, 0),
-    power: PARTS[build.power].power,
-    grip: PARTS[build.wheels].fit.sand,
-    protection: PARTS[build.body].protection,
-  };
+  return { cost: SLOTS.reduce((total, slot) => total + PARTS[build[slot]].cost, 0) };
 }
+
+// Seconds per lap each fitted part adds (positive) or saves (negative) in one sector.
+export function sectorPace(build, sector) {
+  return SLOTS.reduce((total, slot) => total + (PARTS[build[slot]].pace?.[sector] ?? 0), 0);
+}
+
+const PROBLEMS = {
+  straight: { wheels: 'Heavy tyres dulled the acceleration.', power: 'Not enough output for the straight.', body: 'Wing drag held the car back on the straight.' },
+  loose: { wheels: 'Wheels lost grip on this surface.', power: 'The power unit struggled to drive through the loose surface.', body: 'The car felt unsettled on the loose surface.' },
+  technical: { wheels: 'The tyres could not hold the corners.', power: 'The power unit was slow out of the corners.', body: 'Low downforce cost time in the corners.' },
+};
+const SUGGESTIONS = {
+  straight: { wheels: 'Lighter slick or medium tyres are quicker here.', power: 'Try a stronger power unit, if you can manage the heat.', body: 'Less drag helps here. Try balanced or low-drag aero.' },
+  loose: { wheels: 'Try grooved or endurance tyres.', power: 'More output helps a little on loose ground.', body: 'A more stable aero package can help.' },
+  technical: { wheels: 'Endurance tyres hold the corners best.', power: 'A lighter unit can help in the corners.', body: 'Try balanced or high-downforce aero.' },
+};
+const PRACTICE_SCALE = 2.5;
 
 // Pure, deterministic rules. These can be imported unchanged by a future server.
 export function simulate(build, course = COURSE) {
-  const stats = buildStats(build);
   const segments = course.segments.map(segment => {
-    const fit = PARTS[build.wheels].fit[segment.terrain] ?? 0;
-    const speed = stats.power / stats.weight * (1 + fit * 0.12);
-    const slip = fit < 0 ? -fit * 2 : 0;
-    const climb = segment.slope ? Math.max(0, stats.weight - stats.power / 4) * 1.2 : 0;
-    const impact = segment.terrain === 'rock' ? Math.max(0, 2 - stats.protection) * 1.8 : 0;
-    const time = segment.length / speed + slip + climb + impact;
-    const problem = slip > 0 ? 'Wheels lost grip on this surface.' : climb > 1.5 ? 'Extra weight slowed the climb.' : impact > 0 ? 'The light chassis took a rough landing.' : 'A clean run. This combination works here.';
-    const suggestion = slip > 0 ? 'Try grooved or endurance tyres.' : climb > 1.5 ? 'Try a stronger motor or lighter chassis.' : impact > 0 ? 'A protected chassis reduces the landing penalty.' : 'Keep this strength while improving the other stretches.';
-    return { ...segment, time: Math.round(time * 100) / 100, good: slip + climb + impact < 1.5, problem, suggestion };
+    const delta = sectorPace(build, segment.sector);
+    const worst = SLOTS.filter(slot => slot !== 'sensor').sort((a, b) => (PARTS[build[b]].pace[segment.sector]) - (PARTS[build[a]].pace[segment.sector]))[0];
+    const good = delta <= .05;
+    const time = segment.base + delta * PRACTICE_SCALE;
+    return { ...segment, time: Math.round(time * 100) / 100, good,
+      problem: good ? 'A clean run. This combination works here.' : PROBLEMS[segment.sector][worst],
+      suggestion: good ? 'Keep this strength while improving the other stretches.' : SUGGESTIONS[segment.sector][worst] };
   });
   return { time: Math.round(segments.reduce((sum, s) => sum + s.time, 0) * 100) / 100, segments, build: { ...build } };
 }

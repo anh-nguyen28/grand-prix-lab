@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, changedSlots, transition } from '../shared/game.js';
-import { PARTS, DEFAULT_BUILD } from '../shared/content.js';
+import { BUDGET, DEMO_TEAMS, PARTS, DEFAULT_BUILD } from '../shared/content.js';
 import { buildStats, rankField, simulate } from '../shared/simulation.js';
 
 function act(state, command) { const result = transition(state, command); assert.equal(result.ok, true, result.message); return result.state; }
@@ -18,7 +18,7 @@ test('a complete round gives explainable points and cannot score twice', () => {
   state = act(state, { type: 'REVEAL' });
   assert.equal(state.score.prediction, 3);
   assert.equal(state.score.total, state.score.race + 3);
-  assert.equal(state.field.length, 6);
+  assert.equal(state.field.length, DEMO_TEAMS.length + 1);
   assert.equal(transition(state, { type: 'REVEAL' }).ok, false);
 });
 
@@ -26,16 +26,26 @@ test('parts refund their cost and every accepted build is complete and within bu
   let state = createGame();
   for (let i = 0; i < 5; i++) for (const part of Object.values(PARTS)) {
     const result = transition(state, { type: 'SET_PART', id: part.id });
-    if (result.ok) { state = result.state; assert.ok(buildStats(state.build).cost <= 100); assert.equal(Object.keys(state.build).length, 4); }
+    if (result.ok) { state = result.state; assert.ok(buildStats(state.build).cost <= BUDGET); assert.equal(Object.keys(state.build).length, 4); }
   }
   state = createGame();
   state = act(state, { type: 'SET_PART', id: 'tracks' });
-  state = act(state, { type: 'SET_PART', id: 'torque' });
   state = act(state, { type: 'SET_PART', id: 'carbon' });
-  assert.equal(buildStats(state.build).cost, 100);
-  assert.equal(transition(state, { type: 'SET_PART', id: 'radar' }).ok, false);
+  assert.equal(buildStats(state.build).cost, 74);
+  const blocked = transition(state, { type: 'SET_PART', id: 'torque' });
+  assert.equal(blocked.ok, false);
+  assert.match(blocked.message, new RegExp(`${BUDGET} credits`));
+  assert.equal(transition(state, { type: 'SET_PART', id: 'thermal' }).ok, false);
   state = act(state, { type: 'SET_PART', id: 'road' });
-  assert.equal(buildStats(state.build).cost, 84);
+  assert.equal(buildStats(state.build).cost, 60);
+});
+
+test('a new round can start from the previous car, but never from an invalid one', () => {
+  const kept = { wheels: 'offroad', power: 'electric', body: 'carbon', sensor: 'thermal' };
+  assert.deepEqual(createGame(undefined, kept).build, kept);
+  assert.deepEqual(createGame(undefined, { ...kept, sensor: 'radar' }).build, DEFAULT_BUILD);
+  assert.deepEqual(createGame(undefined, { ...kept, power: 'radar' }).build, DEFAULT_BUILD);
+  assert.equal(createGame(undefined, kept).runs.length, 0);
 });
 
 test('predictions lock before feedback and cannot be changed afterwards', () => {

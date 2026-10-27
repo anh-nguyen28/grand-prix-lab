@@ -1,0 +1,92 @@
+/* Garage redesign: a calmer first page and story-led Field notes. Loaded after the other sheets. */
+
+/* Compact page heading: one line of context instead of a hero block. */
+.round-bar{min-height:70px}
+.page-heading{padding:16px 0 18px;align-items:baseline;gap:18px;justify-content:flex-start;flex-wrap:wrap}
+.page-heading>div{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 16px}
+.page-heading .eyebrow{margin:0;width:100%}
+.page-heading h1{font-size:clamp(20px,1.7vw,26px);line-height:1.15}
+.page-heading p{font-size:12px}
+
+/* Parts shelf: every option in a category visible at once. */
+.parts-panel .budget{padding:11px 12px 9px;margin-bottom:12px}
+.parts-panel .budget small{font-size:9px}
+.parts-panel .part-tabs{margin-top:0;margin-bottom:10px}
+.parts-shelf{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.shelf-part{padding:6px 6px 9px;border:1px solid #273346;border-radius:4px;background:#121b27}
+.shelf-part.is-fitted{border-color:#3f7a62;background:#13231f}
+.part-object{height:82px}
+.part-object .part-art{max-height:70px}
+.shelf-caption{margin-top:4px;align-items:start}
+.shelf-caption>strong{font-size:11px;line-height:1.3}
+.shelf-caption>span{font-size:11px;white-space:nowrap}
+.shelf-part>p{font-size:8.5px;line-height:1.5;min-height:0;margin:3px 0 5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.part-details{font-size:9px}
+.parts-panel .bench-tip{font-size:9px;border-top:0;padding-top:10px}
+
+/* The car stays the centrepiece, with its spec sheet directly below. */
+.scene-card{height:540px;min-height:540px}
+.engineering-panel{margin-top:12px;padding:14px 16px}
+.spec-sheet{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-top:12px}
+.spec-sheet span{font-size:9px;color:#9aa8bb;display:block}
+.spec-sheet i{display:block;height:4px;background:#253246;border-radius:2px;overflow:hidden;margin:6px 0 5px}
+.spec-sheet b{display:block;height:100%;background:var(--meter);transition:width .35s ease}
+.spec-sheet strong{font:600 12px var(--display);color:#e3ebf6}
+.engineering-panel .setup-risks{margin-top:12px}
+
+/* Field notes: a narrated story in chapters. */
+.notes-header{padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.notes-header .eyebrow{font-size:8px;letter-spacing:1.4px;color:#f0626c}
+.notes-header h2{font:700 19px var(--display);margin:4px 0 3px}
+.narrator{font-size:9px;color:#9aa8bb}
+.chapters{display:grid}
+.chapter{border-bottom:1px solid var(--line)}
+.chapter>summary,.chapter.is-locked{display:flex;align-items:center;gap:10px;padding:11px 0;cursor:pointer;list-style:none}
+.chapter>summary::-webkit-details-marker{display:none}
+.chapter.is-locked{cursor:default;opacity:.45}
+.chapter-number{display:grid;place-items:center;flex:none;width:24px;height:24px;border-radius:50%;border:1px solid #3a475b;font:600 9px var(--display);color:#9aa8bb}
+.chapter-number .icon{width:11px;height:11px}
+.chapter.is-current .chapter-number{background:#f03643;border-color:#f03643;color:#fff}
+.chapter.is-done .chapter-number{background:#173129;border-color:#2f5d4d;color:#7bd8be}
+.chapter-title small{display:block;font-size:7px;letter-spacing:1.1px;color:#8191a8}
+.chapter-title strong{font-size:12px;color:#e3ebf6}
+.chapter-body{padding:0 0 14px}
+.rae-line{display:flex;gap:9px;align-items:flex-start}
+.rae-avatar{display:grid;place-items:center;flex:none;width:22px;height:22px;border-radius:50%;background:#2b3a52;color:#cfe0f7;font:700 10px var(--display)}
+.rae-line p{font-size:10.5px;line-height:1.65;color:#c3cfdf;margin:0 0 6px}
+.rae-line.on-track{padding:14px 0}
+.metaphor{display:grid;gap:4px;margin:6px 0 0 31px}
+.metaphor>div{display:flex;justify-content:space-between;gap:8px;font-size:9.5px;padding:5px 8px;background:#18212e;border-radius:3px}
+.metaphor dt{color:#9aa8bb}
+.metaphor dd{margin:0;color:#e3ebf6;font-weight:600;text-align:right}
+.chapter-body .sensor-label{padding:8px 0 7px}
+.chapter-body .prediction{margin-top:8px;padding-top:0;border-top:0}
+.chapter-body .prediction>p{margin-top:6px}
+.chapter-body .prediction .eyebrow{font-size:7px;margin-bottom:7px}
+.track-tests{list-style:none;margin:6px 0 0 31px;padding:0;display:grid;gap:7px}
+.track-tests li{border-left:2px solid #3a4a62;padding-left:9px}
+.track-tests strong{display:block;font-size:10.5px}
+.track-tests span{font-size:9.5px;color:#9aa8bb}
+.run-report{margin-top:6px}
+.run-report .eyebrow{font-size:7px}
+.run-report .run-time{margin:8px 0 10px}
+
+/* Epilogue */
+.story-recap{list-style:none;padding:0;margin:4px 0 16px;display:grid;gap:5px;counter-reset:step}
+.story-recap li{display:flex;justify-content:space-between;gap:10px;font-size:10px;padding:6px 9px;background:#18212e;border-radius:3px;counter-increment:step}
+.story-recap li strong:before{content:counter(step,decimal-leading-zero) "  ";color:#f0626c}
+.story-recap span{color:#9aa8bb;text-align:right}
+.rae-signoff{font-size:10.5px;line-height:1.6;color:#c3cfdf;font-style:italic;margin:0 0 16px}
+
+@media(max-width:1200px){.spec-sheet{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:960px){.parts-shelf{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){
+  .page-heading{padding:12px 0 14px}
+  .page-heading h1{font-size:22px}
+  .scene-card{height:440px;min-height:440px}
+  .spec-sheet{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .parts-shelf{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rae-line p{font-size:13px}
+  .chapter-title strong{font-size:14px}
+  .metaphor>div,.track-tests span,.story-recap li{font-size:12px}
+}

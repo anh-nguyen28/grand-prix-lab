@@ -13,8 +13,8 @@ test('a scored race shows cooling failure, brake fire, retirement and zero finis
   await page.getByRole('button',{name:'Lock build & race'}).click();
   await page.getByRole('button',{name:'Change playback speed'}).click();
   const player=page.locator('[data-driver-row="you"]');
-  await expect(player).toContainText('TEMPERATURE HIGH',{timeout:80000});
-  await expect(player).toContainText('BRAKE FIRE',{timeout:100000});
+  await expect(player).toContainText('HOT',{timeout:80000});
+  await expect(player).toContainText('FIRE',{timeout:100000});
   await page.waitForTimeout(1200);
   await page.getByRole('button',{name:'Pause race'}).click();
   await page.getByRole('button',{name:'Follow me',exact:true}).click();
@@ -31,6 +31,6 @@ test('a scored race shows cooling failure, brake fire, retirement and zero finis
   await page.getByRole('button',{name:'Skip to finish'}).click();
   await expect(page.locator('.standings>.is-you')).toContainText('RETIRED');
   await expect(page.locator('.score-breakdown>div').first()).toContainText('+0');
-  await expect(page.locator('.race-debrief')).toContainText('RETIRED');
+  await expect(page.locator('.race-debrief').first()).toContainText('RETIRED');
   expect(errors).toEqual([]);
 });

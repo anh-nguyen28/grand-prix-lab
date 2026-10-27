@@ -13,6 +13,6 @@ export function createLocalSession() {
       if (result.ok) { state = result.state; listeners.forEach(listener => listener(structuredClone(state))); }
       return result;
     },
-    reset() { state = createGame(state.profile); listeners.forEach(listener => listener(structuredClone(state))); },
+    reset(build = null) { state = createGame(state.profile, build); listeners.forEach(listener => listener(structuredClone(state))); },
   };
 }

@@ -1,0 +1,144 @@
+/* Workspace layout for every mode. Loaded last, so it is the single source of truth for the grid.
+   Garage: parts shelf | car | car stats in one row of equal height, Field notes full width below.
+   Race: timing tower | track | live chat. Incident lab: shelf | track. */
+:root{--bay:560px}
+.workspace{display:grid;grid-template-columns:280px minmax(0,1fr) 280px;grid-template-rows:var(--bay) auto;grid-template-areas:"parts scene stats" "notes notes notes";gap:20px;align-items:stretch}
+.parts-panel{grid-area:parts;height:var(--bay);min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#3a4a62 transparent}
+/* The three boxes in the top row share one frame style. */
+.parts-panel,.engineering-panel{padding:16px;border:1px solid #2d3c52;border-radius:5px;background:#111d2b}
+.race-mode .parts-panel{border:0;background:none;padding:5px 0 0}
+.scene-column{grid-area:scene;align-self:stretch;min-width:0}
+.scene-card{height:var(--bay);min-height:var(--bay)}
+.engineering-panel{grid-area:stats;height:var(--bay);margin:0;overflow-y:auto;scrollbar-width:thin}
+.intel-panel{grid-area:notes;min-width:0}
+
+/* The whole parts box scrolls, so parts stay at eye level with the car. Its header stays pinned and,
+   once the player scrolls, compacts: the title folds away, the budget becomes one line and the tabs shrink. */
+.parts-panel::-webkit-scrollbar{width:6px}
+.parts-panel::-webkit-scrollbar-thumb{background:#3a4a62;border-radius:3px}
+.shelf-head{position:sticky;top:-16px;z-index:3;margin:-16px -16px 10px;padding:16px 16px 0;background:#111d2b;border-bottom:1px solid transparent;transition:border-color .2s}
+.shelf-head .panel-title{max-height:40px;overflow:hidden;transition:max-height .25s ease,opacity .2s,margin .25s}
+.shelf-head .budget{transition:padding .25s,margin .25s}
+.shelf-head .budget>div:first-child{transition:font-size .25s}
+.shelf-head .budget small{display:block;max-height:20px;overflow:hidden;transition:max-height .25s,opacity .2s,margin .25s}
+.budget-short{display:none;font-style:normal}
+.shelf-head .part-tabs .icon{transition:width .25s,height .25s}
+.shelf-head .part-tabs>button{transition:padding .25s,font-size .25s}
+.parts-panel.compact .shelf-head{border-bottom-color:#2d3c52;padding-top:10px}
+.parts-panel.compact .panel-title{max-height:0;opacity:0;margin:0}
+.parts-panel.compact .budget{padding:7px 10px 6px;margin-bottom:6px}
+.parts-panel.compact .budget>div:first-child{align-items:center}
+.parts-panel.compact .budget>div:first-child>span{display:none}
+.parts-panel.compact .budget-short{display:inline;font-size:10px;color:#9aa8bb}
+.parts-panel.compact .budget strong{font-size:15px}
+.parts-panel.compact .budget-track{margin-top:4px;height:3px}
+.parts-panel.compact .budget small{max-height:0;opacity:0;margin:0}
+.parts-panel.compact .part-tabs{margin-bottom:0}
+.parts-panel.compact .part-tabs>button{padding-top:5px;padding-bottom:6px;font-size:9px}
+.parts-panel.compact .part-tabs .icon{width:13px;height:13px}
+.parts-panel .parts-shelf{padding-bottom:4px}
+/* Bigger part cards now that the header gets out of the way. */
+.parts-panel .part-object{height:118px}
+.parts-panel .part-object .part-art{max-height:100px}
+.parts-panel .shelf-caption>strong{font-size:12px}
+.parts-panel .shelf-caption>span{font-size:12px}
+.parts-panel .shelf-part>p{font-size:9.5px}
+
+/* Race: the tower and chat grow with their content; car stats make way. */
+.workspace.race-mode{grid-template-rows:auto}
+.workspace.race-mode:not(.demo-mode){grid-template-columns:250px minmax(0,1fr) 290px;grid-template-areas:"parts scene notes"}
+.workspace.race-mode.demo-mode{grid-template-columns:270px minmax(0,1fr);grid-template-areas:"parts scene"}
+.race-mode .parts-panel{height:auto;overflow:visible}
+.race-mode .engineering-panel,.demo-mode .intel-panel{display:none}
+
+/* Car stats: specs stacked, then risks and the fitted parts. */
+.stats-title{font:700 17px var(--display);margin:6px 0 12px}
+.engineering-panel .spec-sheet{grid-template-columns:1fr;gap:9px;margin-top:0}
+.engineering-panel .spec-sheet>div{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}
+.engineering-panel .spec-sheet span{font-size:10px}
+.engineering-panel .spec-sheet strong{font-size:11px}
+.engineering-panel .spec-sheet i{grid-column:1/-1;margin:5px 0 0}
+.engineering-panel .setup-risks{margin-top:14px}
+/* Stats animate when parts change: the bar slides, its colour moves between red, yellow and green,
+   and a +/− badge shows the change for a few seconds. */
+.engineering-panel .spec-sheet b{transition:width .7s cubic-bezier(.2,.8,.25,1),background-color .7s}
+.spec-sheet b.tone-low{background:#ff5a5f}
+.spec-sheet b.tone-average{background:#ffc93c}
+.spec-sheet b.tone-good{background:#4fd18b}
+.spec.tone-low strong{color:#ff8a8f}
+.spec.tone-average strong{color:#ffd76a}
+.spec.tone-good strong{color:#7be0a8}
+.spec strong small{font-size:9px;font-weight:400;color:#8191a8;margin-left:3px}
+.spec-delta{display:inline-block;font-style:normal;font-size:9px;font-weight:700;margin-right:6px;padding:1px 6px;border-radius:8px;animation:delta-fade 3.2s ease forwards}
+.spec-delta.up{color:#7be0a8;background:#173129}
+.spec-delta.down{color:#ff8a8f;background:#3a1b22}
+@keyframes delta-fade{0%{opacity:0;transform:translateY(4px)}10%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.engineering-panel .spec-sheet b{transition:none}.spec-delta{animation:none}}
+.fitted-parts{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:grid;gap:6px}
+.fitted-parts .eyebrow{font-size:7px;letter-spacing:1.1px}
+.fitted-parts>div{display:grid;grid-template-columns:52px 1fr auto;gap:6px;font-size:10px;align-items:baseline}
+.fitted-parts>div>span{color:#8191a8}
+.fitted-parts strong{font-weight:600;color:#e3ebf6}
+.fitted-parts em{font:9px ui-monospace,monospace;font-style:normal;color:#9aa8bb}
+.fitted-total{border-top:1px dashed #2c3a50;padding-top:6px}
+
+/* Field notes across the page: chapter tabs, then story | what to do now | glossary. */
+.intel-panel{padding:18px 22px 22px}
+.notes-header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px 24px;flex-wrap:wrap;padding-bottom:14px;margin:0;border-bottom:1px solid var(--line)}
+.notes-header h2{font:700 21px var(--display);margin:4px 0 0}
+.chapter-strip{display:flex;gap:6px;flex-wrap:wrap}
+.chapter-chip{display:flex;align-items:center;gap:7px;padding:5px 11px 5px 5px;border:1px solid #2c3a50;border-radius:20px;font-size:11px;color:#c3cfdf;background:#121b27}
+.chapter-chip:hover:not(:disabled){border-color:#4a5e7a}
+.chapter-chip.selected{border-color:#f03643;background:#2a1820;color:#fff}
+.chapter-chip:disabled{opacity:.4;cursor:default}
+.chapter-chip .chapter-number{width:21px;height:21px}
+.chapter-chip.is-current .chapter-number{background:#f03643;border-color:#f03643;color:#fff}
+.chapter-chip.is-done .chapter-number{background:#173129;border-color:#2f5d4d;color:#7bd8be}
+.notes-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(220px,.65fr);gap:30px;padding-top:18px}
+.notes-story h3{font:700 19px var(--display);margin:4px 0 12px}
+.notes-story .rae-line{margin-bottom:8px}
+.notes-story .rae-line p{font-size:13px;line-height:1.7;max-width:62ch}
+.notes-story>.eyebrow,.notes-glossary>.eyebrow{font-size:8px;letter-spacing:1.2px}
+.notes-activity .sensor-label{padding-top:0}
+.notes-activity .run-report{margin-top:0}
+.notes-activity .track-tests,.notes-glossary .metaphor{margin:0}
+.notes-glossary .metaphor{margin-top:8px}
+.metaphor>div{transition:background-color .2s}
+.metaphor>div.active{background:#2a1820;box-shadow:inset 2px 0 #f03643}
+.metaphor>div.active dd{color:#ff8a94}
+.round-steps{margin:0;padding:0 0 0 18px;display:grid;gap:8px;font-size:12px;color:#c3cfdf}
+.round-steps li::marker{color:#f03643;font-weight:700}
+
+/* The race-day epilogue reads in three columns too. */
+.lesson-layout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:30px;align-items:start}
+.lesson-layout .lesson-illustration{justify-content:flex-start;padding:16px 0}
+
+@media(max-width:1200px){
+  :root{--bay:520px}
+  .workspace{grid-template-columns:240px minmax(0,1fr) 240px;gap:16px}
+  .workspace.race-mode:not(.demo-mode){grid-template-columns:240px minmax(0,1fr);grid-template-areas:"parts scene" "notes notes"}
+  .notes-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .notes-glossary{grid-column:1/-1}
+  .notes-glossary .metaphor{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+}
+@media(max-width:960px){
+  .workspace{grid-template-columns:250px minmax(0,1fr);grid-template-rows:var(--bay) auto auto;grid-template-areas:"parts scene" "stats stats" "notes notes"}
+  .engineering-panel{height:auto}
+  .engineering-panel .spec-sheet{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .lesson-layout{grid-template-columns:1fr 1fr}
+}
+@media(max-width:640px){
+  .workspace,.workspace.race-mode,.workspace.race-mode:not(.demo-mode){display:flex;flex-direction:column;gap:16px}
+  .scene-column{order:0}.engineering-panel{order:1}.parts-panel{order:2}.intel-panel{order:3}
+  .race-mode .intel-panel{order:1}.race-mode .parts-panel{order:2}
+  .parts-panel,.engineering-panel{height:auto}
+  .parts-panel{overflow:visible}
+  .shelf-head{top:0}
+  .scene-card{height:440px;min-height:440px}
+  .engineering-panel .spec-sheet{grid-template-columns:1fr 1fr}
+  .intel-panel{padding:16px}
+  .notes-body,.lesson-layout{grid-template-columns:1fr;gap:18px}
+  .chapter-chip>span:last-child{display:none}
+  .chapter-chip{padding:4px}
+  .notes-story .rae-line p{font-size:14px}
+}

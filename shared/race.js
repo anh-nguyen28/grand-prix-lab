@@ -1,9 +1,10 @@
-import { BOOST_CHARGES, BOOST_COOLDOWN, BOOST_GAIN, BOOST_SECONDS, RACE_LAPS } from './content.js';
+import { BOOST_CHARGES, BOOST_COOLDOWN, BOOST_GAIN, BOOST_SECONDS, GRID_GAP, PARTS, RACE_LAPS, SECTORS } from './content.js';
 import { buildIncidents, engineeringStats, INCIDENTS } from './engineering.js';
-import { simulate } from './simulation.js';
+import { sectorPace, simulate } from './simulation.js';
 import { TRACK_ZONES, trackZone } from './track.js';
 
 const round = n => Math.round(n * 1000) / 1000;
+export const WARNING_SECONDS = 3;
 function noise(id, lap, sector) {
   let hash = 2166136261;
   for (const char of `${id}:${lap}:${sector}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
@@ -44,22 +45,21 @@ export function createRace(entries, qualifyingBuild) {
   const grid = entries.map(entry => ({ ...entry, qualifying: simulate(entry.id === 'you' ? qualifyingBuild : entry.build) }))
     .sort((a, b) => a.qualifying.time - b.qualifying.time || a.id.localeCompare(b.id));
   const field = grid.map((entry, gridIndex) => {
-    const setup = simulate(entry.build);
-    const wear = { road: .035, offroad: .015, tracks: .005 }[entry.build.wheels];
+    const setup = simulate(entry.build), tyre = PARTS[entry.build.wheels];
     const segments = Array.from({ length: RACE_LAPS }, (_, lap) => setup.segments.map((segment, sector) => ({
       ...segment, lap: lap + 1, sector: sector + 1,
-      time: round(9 + segment.time * .025 + lap * wear + noise(entry.id, lap, sector) * .18
-        + (entry.build.power==='sprint'?-.35:0)
-        + (sector === 0 ? { scout: -.25, alloy: 0, carbon: .17 }[entry.build.body] : sector === 2 ? { scout: .25, alloy: 0, carbon: -.18 }[entry.build.body] : 0)),
+      time: round(9 + sectorPace(entry.build, SECTORS[sector]) + lap * tyre.wear + noise(entry.id, lap, sector) * .18 + (lap === 0 && sector === 0 ? tyre.launch ?? 0 : 0)),
     }))).flat();
     const plan = buildTimeline(segments, buildIncidents(entry.build));
     const retirement=plan.events.find(event=>event.type==='fire')||null;
     const incidents=plan.events.filter(event=>!retirement||event.start<=retirement.end);
-    return { ...entry, grid: gridIndex + 1, startDelay: gridIndex * .24, timeline: plan.timeline, incidents, retirement,
+    const lapEnds = Array.from({ length: RACE_LAPS + 1 }, (_, lap) => lap === 0 ? 0 : virtualTimeAtDistance({ timeline: plan.timeline }, lap));
+    const lapTimes = lapEnds.slice(1).map((end, lap) => round(end - lapEnds[lap]));
+    return { ...entry, grid: gridIndex + 1, startDelay: gridIndex * GRID_GAP, timeline: plan.timeline, incidents, retirement, lapTimes,
       result: { segments, time: plan.time, incidentLoss: round(incidents.reduce((sum, event) => sum + event.loss, 0)), build: { ...entry.build } } };
   });
   const boosts = field.filter(entry => entry.id !== 'you').flatMap((entry, index) => [
-    { id: entry.id, at: 39 + index * 2.3 }, { id: entry.id, at: 159 + index * 1.7 },
+    { id: entry.id, at: 39 + index * 2.3 }, { id: entry.id, at: 99 + index * 1.9 }, { id: entry.id, at: 159 + index * 1.7 },
   ]);
   return { laps: RACE_LAPS, field, boosts, maxTime: Math.max(...field.map(entry => (entry.retirement?.end ?? entry.result.time) + entry.startDelay)), charges: BOOST_CHARGES };
 }
@@ -105,9 +105,11 @@ export function sampleRace(race, elapsed) {
     const fullEvent=piece.event?entry.incidents.find(event=>event.distance===piece.event.distance&&event.type===piece.event.type):null;
     const incident = retired ? {...entry.retirement,progress:1,effect:'steam',label:'RETIRED · BRAKE FAILURE'} : !finished && piece.event ? {...piece.event,progress:Math.min(1,(virtualTime-fullEvent.start)/(fullEvent.end-fullEvent.start))} : null;
     const completedIncidents = entry.incidents.filter(event => virtualTime >= event.end);
+    // A short warning before each incident gives spectators time to look.
+    const warning = retired || finished ? null : entry.incidents.find(event => event.start > virtualTime && event.start - virtualTime <= WARNING_SECONDS) || null;
     const stats = engineeringStats(entry.build);
     return { ...entry, distance:retired?entry.retirement.to:finished?race.laps:distance, virtualTime, finished, retired, incident, zone:trackZone(distance),
-      completedIncidents, finishTime: finished ? round(elapsedForProgress(race, entry, entry.result.time)) : null,
+      completedIncidents, warning, finishTime: finished ? round(elapsedForProgress(race, entry, entry.result.time)) : null,
       lap: Math.min(race.laps, Math.floor(distance) + 1),
       heat: Math.round(Math.min(99, 45 + (100 - stats.cooling) * .5 + distance * 2 + (incident?.type === 'overheat' ? 20 : 0))),
       tyreLife: Math.round(Math.max(15, 100 - distance * (100 - stats.endurance) / 9)),
@@ -133,4 +135,33 @@ export function finishRace(race) {
     place: !row.retired && index > 0 && row.finishTime === rows[index - 1].finishTime ? rows.findIndex(car => car.finishTime === row.finishTime) + 1 : index + 1,
     result: { ...row.result, time: row.retired?null:row.finishTime },
   }));
+}
+
+// Where a car stood when an incident began, where it stood once it recovered, and who got past.
+export function incidentImpact(race, id, event) {
+  const entry = race.field.find(car => car.id === id);
+  const start = elapsedForProgress(race, entry, event.start), end = elapsedForProgress(race, entry, event.end) + 1;
+  const before = sampleRace(race, start), after = sampleRace(race, end);
+  const was = before.find(car => car.id === id), now = after.find(car => car.id === id);
+  const passedBy = after.filter(car => car.id !== id && car.position < now.position && before.find(other => other.id === car.id).position > was.position).map(car => car.name);
+  return { before: was.position, after: now.position, passedBy, retired: event.type === 'fire', loss: event.loss, start, end };
+}
+
+// Neighbouring running cars separated by less than a second are fighting for a place.
+export function findBattles(rows, threshold = 1) {
+  const running = rows.filter(row => !row.retired && !row.finished);
+  return running.slice(1).map((row, i) => ({ position: row.position, ahead: running[i], behind: row, gap: round(row.gap - running[i].gap) }))
+    .filter(battle => battle.gap >= 0 && battle.gap < threshold);
+}
+
+// The quickest lap any car has completed so far.
+export function fastestLap(rows) {
+  let best = null;
+  for (const row of rows) {
+    const completed = row.finished ? row.lapTimes.length : Math.floor(row.distance);
+    row.lapTimes.slice(0, row.retired ? 0 : completed).forEach((time, index) => {
+      if (index > 0 && (!best || time < best.time)) best = { id: row.id, name: row.name, lap: index + 1, time };
+    });
+  }
+  return best;
 }

@@ -1,8 +1,8 @@
 import { PARTS } from '../../shared/content.js';
 import { partArt } from './part-art.js';
 
-// Pointer-based dragging works with a mouse, stylus or touch. Click/tap + a
-// fitting-point button is the equivalent keyboard-accessible interaction.
+// Pointer-based dragging works with a mouse, stylus or touch. Double-clicking a part fits it directly.
+// Click/tap + a fitting-point button is the equivalent keyboard-accessible interaction.
 export function createAssemblyInteraction({ onPick, onFit, getArmed, canFit }) {
   let drag = null, ghost = null, suppressClick = false;
   function clean() { ghost?.remove(); ghost=null; drag=null; document.body.classList.remove('dragging-part'); }
@@ -33,6 +33,11 @@ export function createAssemblyInteraction({ onPick, onFit, getArmed, canFit }) {
     clean();document.querySelectorAll('.drop-hover').forEach(item=>item.classList.remove('drop-hover'));
   });
   document.addEventListener('pointercancel', clean);
+  document.addEventListener('dblclick', event => {
+    const part = event.target.closest('[data-action="pick-part"]');
+    if(!part || part.disabled || !canFit(part.dataset.id)) return;
+    event.preventDefault();clean();onFit(part.dataset.id);
+  });
   document.addEventListener('click',event=>{if(suppressClick){event.preventDefault();event.stopImmediatePropagation();}},true);
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&getArmed()){clean();onPick(null);}});
   return { cancel:clean };

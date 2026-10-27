@@ -87,11 +87,11 @@ Pause freezes the local race. Playback can switch to 2×; it defaults to 1×. Th
 
 “Prediction” and “setup forecast” previously looked like unexplained parallel systems. They now have separate, concrete roles:
 
-- **Optional surface puzzle:** use sensor evidence to classify the unmarked surface for 3 extra points. The submitted answer never changes the car. The puzzle is collapsed beneath the race brief and can be skipped.
+- **Field notes chapters 2–3:** use sensor evidence to label the unmarked surface for 3 extra points. The submitted answer never changes the car. It is part of the narrated story rather than a collapsed side panel, but it can still be skipped.
 - **How your car will race:** describes the behavior of the installed parts. Benefits, risks and a failure preview explain what should appear on the track. It is not an additional action or a promise of final position.
 - **More details:** inspect each physical part's gain, compromise, visual consequence and price before fitting it. The fitting interaction stays on the car.
 
-The race brief now leads with straight-line output, cornering grip and enough cooling for the full distance. A full build could integrate classification more tightly with engineering decisions, but that should be tested rather than hidden behind ambiguous terminology.
+The Field notes now tell the round as one story about teaching an AI, so classification sits at the centre of the round rather than in an optional side panel. Whether the narration helps players explain the idea in their own words still needs a playtest.
 
 ## Full-build priorities
 
