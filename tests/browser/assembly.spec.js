@@ -21,7 +21,7 @@ test('physical assembly, part details, safe alternatives, and an isolated brake-
   await expect(page.getByRole('dialog')).toContainText('compact cooling');
   await page.screenshot({path:'artifacts/part-details.png',fullPage:true});
   await page.getByRole('button',{name:'Fit to car',exact:true}).click();
-  await expect(page.locator('#engineering-panel')).toContainText('Limited cooling margin');
+  await expect(page.locator('#engineering-panel')).toContainText('Power unit overheating');
   await page.getByRole('button',{name:'Preview failures'}).click();
   await page.getByRole('button',{name:/Blocked brake duct/}).click();
   await expect(page.getByRole('dialog')).toContainText('uncooled sprint package');
@@ -34,5 +34,18 @@ test('physical assembly, part details, safe alternatives, and an isolated brake-
   await expect(page.getByRole('heading',{name:'Your race starts in the garage.'})).toBeVisible();
   await expect(page.locator('#action-bar')).toContainText('2 practice runs left');
   await expect(page.locator('[data-action="fit-target"][data-fit-slot="power"]')).toContainText('Attack power unit');
+  expect(errors).toEqual([]);
+});
+
+test('the chassis slot has its own tab, fitting point and parts',async({page})=>{
+  const errors=[];page.on('pageerror',error=>errors.push(error.stack));
+  await page.goto('/');await expect(page.locator('#scene')).toHaveAttribute('data-ready','true');
+  await expect(page.locator('.part-tabs').getByRole('tab')).toHaveCount(5);
+  await expect(page.locator('[data-action="fit-target"][data-fit-slot="chassis"]')).toContainText('Stiff aluminium');
+  await page.getByRole('tab',{name:'Chassis',exact:true}).click();
+  await dragPart(page,'sprung','chassis');
+  await expect(page.locator('[data-action="fit-target"][data-fit-slot="chassis"]')).toContainText('Soft-sprung steel');
+  await page.getByRole('tab',{name:'Tyres',exact:true}).click();
+  await expect(page.locator('[data-part-id="wet"]')).toBeVisible();
   expect(errors).toEqual([]);
 });

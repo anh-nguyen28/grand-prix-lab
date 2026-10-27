@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { box, cylinder, material, batchStaticGeometry } from './geometry.js';
 
-import { AERO_LOOKS as AERO, PALETTE, POWER_LOOKS as POWER, SENSOR_LOOKS, TYRE_LOOKS as TYRES } from '../ui/part-looks.js';
+import { AERO_LOOKS as AERO, CHASSIS_LOOKS as CHASSIS, PALETTE, POWER_LOOKS as POWER, SENSOR_LOOKS, TYRE_LOOKS as TYRES } from '../ui/part-looks.js';
 
 // Every part's look comes from part-looks.js, shared with the shelf illustrations.
 const glow=(color,intensity=1)=>new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:intensity,roughness:.4});
@@ -9,8 +9,8 @@ const glow=(color,intensity=1)=>new THREE.MeshStandardMaterial({color,emissive:c
 export function makeRaceCar(build,color='#ef3038',number='07'){
   const car=new THREE.Group(),paint=material(color,.3,.25),carbon=material(PALETTE.carbon,.6,.15),rubber=material('#101218'),metal=material(PALETTE.metal,.35,.65),white=material(PALETTE.white,.32);
   const tyre=TYRES[build.wheels]||TYRES.road,power=POWER[build.power]||POWER.electric,aero=AERO[build.body]||AERO.alloy;
-  const compound=material(tyre.stripe),wheels=[];
-  box(car,[4.5,.14,2],[-.05,.35,0],carbon,.03);box(car,[2.7,.42,.85],[-.5,.65,0],paint,.14);
+  const chassis=CHASSIS[build.chassis]||CHASSIS.stiff,compound=material(tyre.stripe),wheels=[];
+  box(car,[4.5,.14,2],[-.05,.35,0],material(chassis.tub,.6,.15),.03);box(car,[2.7,.42,.85],[-.5,.65,0],paint,.14);
   const nose=new THREE.Mesh(new THREE.CylinderGeometry(.17,.4,2.6,4),paint);nose.rotation.z=-Math.PI/2;nose.rotation.x=Math.PI/4;nose.position.set(1.15,.59,0);nose.castShadow=true;car.add(nose);
   box(car,[1.7,.035,.16],[1.25,.79,0],white,.01);box(car,[.55,.1,3.15],[2.52,.28,0],carbon,.025);
   for(const z of [-.9,.9]){
@@ -21,8 +21,9 @@ export function makeRaceCar(build,color='#ef3038',number='07'){
     // Sidepod inlets: big openings cool well; tiny ones run hot.
     box(car,[.3,power.inlet,.45],[.26,.69,Math.sign(z)*.64],carbon,.03);
     box(car,[1.45,.07,.03],[-.5,.72,Math.sign(z)*.91],white,.01);
-    for(const x of [-1.65,1.5])for(const dx of [-.22,.22]){const arm=box(car,[.07,.07,1.1],[x+dx,.47,Math.sign(z)*.8],carbon,.015);arm.rotation.y=dx>0?.38:-.38;}
+    for(const x of [-1.65,1.5])for(const dx of [-.22,.22]){const arm=box(car,[.07*chassis.arms,.07*chassis.arms,1.1],[x+dx,.47,Math.sign(z)*.8],carbon,.015);arm.rotation.y=dx>0?.38:-.38;}
     if(power.extra==='batteries')for(const x of [-.35,-1.05])box(car,[.6,.2,.4],[x,.97,Math.sign(z)*.64],glow(PALETTE.battery,.9),.04);
+    if(chassis.accent)box(car,[3.6,.03,.05],[-.3,.43,Math.sign(z)*1.0],material(chassis.accent),0);
     if(aero.floor){box(car,[3.3,.12,.06],[-.35,.32,Math.sign(z)*1.02],carbon,.02);box(car,[3.3,.03,.06],[-.35,.39,Math.sign(z)*1.02],material(PALETTE.cyan),0);}
   }
   box(car,[1.02,.2,.7],[-.18,.94,0],carbon,.18);

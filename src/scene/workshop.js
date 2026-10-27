@@ -43,7 +43,7 @@ export function createWorkshop(container) {
   const pipFrame=document.createElement('div');pipFrame.className='pip-frame';pipFrame.hidden=true;container.append(pipFrame);
   const pipCamera=new THREE.PerspectiveCamera(36,1.6,.1,350);
   const fittingLines=document.createElementNS('http://www.w3.org/2000/svg','svg');fittingLines.classList.add('fitting-lines');fittings.append(fittingLines);
-  const anchors={wheels:[1.5,.8,1.2],power:[-1.4,1.2,0],body:[-2.12,1.6,0],sensor:[-.85,1.9,0]};
+  const anchors={wheels:[1.5,.8,1.2],power:[-1.4,1.2,0],body:[-2.12,1.6,0],chassis:[.3,.4,-1.0],sensor:[-.85,1.9,0]};
   const fittingButtons=Object.entries(anchors).map(([slot,anchor],i)=>{
     const button=document.createElement('button');button.className='assembly-target';button.dataset.action='fit-target';button.dataset.fitSlot=slot;
     button.innerHTML=`<b>0${i+1}</b><span><small>${SLOT_LABELS[slot]}</small><strong></strong></span><em>+</em>`;fittings.append(button);
@@ -122,7 +122,7 @@ export function createWorkshop(container) {
     const width=container.clientWidth,height=container.clientHeight;
     for(let i=0;i<fittingButtons.length;i++){
       const item=fittingButtons[i],point=project(new THREE.Vector3(...item.anchor).add(car.position));
-      const left=i%2?width-164:16,top=i<2?92:height-96;
+      const spot={wheels:[16,92],power:[width-164,92],body:[16,height-96],chassis:[16,Math.round(height/2)-20],sensor:[width-164,height-96]}[item.slot],left=spot[0],top=spot[1];
       item.button.style.transform=`translate(${left}px,${top}px)`;
       item.line.setAttribute('x1',left+70);item.line.setAttribute('y1',top+24);item.line.setAttribute('x2',point.x);item.line.setAttribute('y2',point.y);
       item.line.classList.toggle('matching',armed&&PARTS[armed].slot===item.slot);

@@ -47,7 +47,7 @@ export function renderParts(state, ui) {
   if (state.phase === 'results') return renderResults(state);
   const stats = buildStats(state.build), left = BUDGET - stats.cost;
   const category = ui.category;
-  return `<div class="shelf-head"><div class="panel-title"><h2>Parts shelf</h2><span class="small-mono">04 SLOTS</span></div>
+  return `<div class="shelf-head"><div class="panel-title"><h2>Parts shelf</h2><span class="small-mono">0${SLOTS.length} SLOTS</span></div>
     <div class="budget"><div><span>Build budget</span><em class="budget-short">Budget</em><strong>${stats.cost}<span> / ${BUDGET}</span></strong></div><div class="budget-track"><i style="width:${Math.min(100, stats.cost / BUDGET * 100)}%"></i></div><small>${left} credits left</small></div>
     <div class="part-tabs" role="tablist" aria-label="Part category">${SLOTS.map(slot => `<button role="tab" aria-selected="${category === slot}" class="${category === slot ? 'selected' : ''}" data-action="category" data-category="${slot}">${icon(slotIcon[slot])}<span>${SLOT_LABELS[slot]}</span></button>`).join('')}</div></div>
     <div class="parts-shelf" role="tabpanel" aria-label="${SLOT_LABELS[category]} options">${renderPartShelf(state,category,ui.busy,ui.suggested)}</div>
