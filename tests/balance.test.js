@@ -1,46 +1,50 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BUDGET, DEFAULT_BUILD, DEMO_TEAMS, PARTS } from '../shared/content.js';
-import { addPlayerBoost, createRace, finishRace } from '../shared/race.js';
+import { BUDGET, DEFAULT_BUILD, DEMO_TEAMS, PARTS, rivalsFor } from '../shared/content.js';
 import { buildStats } from '../shared/simulation.js';
+import { TRACKS } from '../shared/tracks.js';
+import { analyse, finish } from '../scripts/balance-report.mjs';
 
-// Balance targets for Dune Valley. Retune part pace, prices or rivals if one fails.
-const RETIRED = 99;
-const options = slot => Object.values(PARTS).filter(part => part.slot === slot).map(part => part.id);
-function finish(build, boosts) {
-  let race = createRace([{ id: 'you', name: 'Balance', build }, ...DEMO_TEAMS], build);
-  for (let i = 0; i < boosts; i++) { const result = addPlayerBoost(race, 30 + i * 60); if (result.ok) race = result.race; }
-  const you = finishRace(race).find(car => car.id === 'you');
-  return you.retired ? RETIRED : you.place;
-}
-const builds = options('wheels').flatMap(wheels => options('power').flatMap(power => options('body').map(body => ({ wheels, power, body, sensor: 'camera' }))));
-const affordable = builds.filter(build => buildStats(build).cost <= BUDGET);
-const results = affordable.map(build => ({ build, cost: buildStats(build).cost, plain: finish(build, 0), ers: finish(build, 3) }));
+const reports = Object.fromEntries(TRACKS.map(track => [track.id, analyse(track)]));
+const key = build => `${build.wheels}/${build.power}/${build.body}/${build.chassis}`;
 
-test('the budget rules out the all-premium car', () => {
-  const premium = { wheels: 'tracks', power: 'torque', body: 'carbon', sensor: 'camera' };
-  assert.ok(buildStats(premium).cost > BUDGET);
-  assert.ok(affordable.length < builds.length);
-  assert.ok(DEMO_TEAMS.every(team => buildStats(team.build).cost <= BUDGET));
+test('every rival build is complete and within budget on every track', () => {
+  for (const track of TRACKS) for (const team of rivalsFor(track.id)) {
+    assert.ok(buildStats(team.build).cost <= BUDGET, `${track.id}/${team.id}`);
+    for (const slot of ['wheels', 'power', 'body', 'chassis', 'sensor']) assert.ok(PARTS[team.build[slot]], `${track.id}/${team.id}/${slot}`);
+  }
 });
 
-test('several different cars can win, and winning needs the race as well as the build', () => {
-  const winners = results.filter(result => result.ers === 1);
-  assert.ok(winners.length >= 4, `only ${winners.length} winning builds`);
-  for (const slot of ['wheels', 'power', 'body']) assert.ok(new Set(winners.map(result => result.build[slot])).size >= 2, `every winner shares the same ${slot}`);
-  assert.ok(results.some(result => result.plain <= 3), 'the best builds should reach the podium without ERS');
+test('each track can be won by several different builds', () => {
+  for (const track of TRACKS) {
+    const report = reports[track.id];
+    assert.ok(report.winners >= 4, `${track.id}: only ${report.winners} winning builds`);
+    assert.ok(report.winnerTyres.length >= 2, `${track.id}: winners share one tyre`);
+    assert.ok(report.winnerPower.length >= 2, `${track.id}: winners share one power unit`);
+  }
 });
 
-test('about half of all builds score points, and the starting car must be improved', () => {
-  const scoring = results.filter(result => result.ers <= 10).length / results.length;
-  assert.ok(scoring >= .35 && scoring <= .6, `${Math.round(scoring * 100)}% of builds score points`);
-  assert.ok(finish(DEFAULT_BUILD, 3) > 10, 'the starting car should not score points');
+test('no build wins every track', () => {
+  const sets = TRACKS.map(track => new Set(reports[track.id].rows.filter(row => row.ers.place === 1).map(row => key(row.build))));
+  const everywhere = [...sets[0]].filter(item => sets.every(set => set.has(item)));
+  assert.equal(everywhere.length, 0, `build wins everywhere: ${everywhere[0]}`);
 });
 
-test('every part except the sprint package can reach the top five, and price does not buy the win', () => {
-  for (const id of Object.keys(PARTS).filter(id => PARTS[id].slot !== 'sensor' && id !== 'sprint'))
-    assert.ok(results.some(result => Object.values(result.build).includes(id) && result.ers <= 5), `${id} never reaches the top five`);
-  const priciest = Math.max(...results.map(result => result.cost));
-  assert.ok(results.some(result => result.cost < priciest && result.ers === 1));
-  assert.ok(results.filter(result => result.build.power === 'sprint').every(result => result.ers === RETIRED));
+test('25–45% of affordable builds crash or retire, and the default car does not score', () => {
+  for (const track of TRACKS) {
+    const trouble = reports[track.id].trouble;
+    assert.ok(trouble >= 25 && trouble <= 45, `${track.id}: ${trouble}% crash or retire`);
+    assert.ok(finish(DEFAULT_BUILD, track, 3).place > 10, `${track.id}: the starting car should not score`);
+  }
+});
+
+test('every part except the sprint package reaches the top five somewhere, and price does not buy the win', () => {
+  for (const id of Object.keys(PARTS).filter(id => PARTS[id].slot !== 'sensor' && id !== 'sprint')) {
+    assert.ok(TRACKS.some(track => reports[track.id].rows.some(row => Object.values(row.build).includes(id) && row.ers.place <= 5)), `${id} never reaches the top five`);
+  }
+  for (const track of TRACKS) {
+    const rows = reports[track.id].rows, priciest = Math.max(...rows.map(row => row.cost));
+    assert.ok(rows.some(row => row.cost < priciest && row.ers.place === 1), `${track.id}: the priciest build always wins`);
+  }
+  assert.ok(DEMO_TEAMS.length >= 19);
 });

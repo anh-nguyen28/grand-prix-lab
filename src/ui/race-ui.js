@@ -1,12 +1,13 @@
 import { BOOST_COOLDOWN, RACE_LAPS, driverCode } from '../../shared/content.js';
 import { fastestLap, findBattles, incidentImpact } from '../../shared/race.js';
-import { trackZone } from '../../shared/track.js';
+import { CONDITIONS } from '../../shared/conditions.js';
+import { trackById, trackZone } from '../../shared/tracks.js';
 import { escapeHtml as e, icon } from './icons.js';
 import { teamLogo } from './team-logo.js';
 import { chatControl, chatIncident, chatRival, resetRaceChat, tickRaceChat } from './race-chat.js';
 
 // Short tags keep the 20-row tower readable.
-const TAG = { wheelspin: 'SPIN', understeer: 'WIDE', overheat: 'HOT', brakefade: 'BRAKES', contact: 'KERB', fire: 'FIRE' };
+const TAG = { wheelspin: 'SPIN', understeer: 'WIDE', overheat: 'HOT', brakefade: 'BRAKES', contact: 'KERB', fire: 'FIRE', crash: 'CRASH', aquaplane: 'AQUA', coldslide: 'COLD', tyreshred: 'WORN', bumpbreak: 'BUMPS' };
 
 // Broadcast state for one race. Reset before every race.
 let seen = new Set(), lightsOut = false, yourCall = null, lastPositions = new Map(), callouts = [], callout = null, announced = new Set(), bestLap = null, banner = null, impact = null, finalLap = false;
@@ -15,7 +16,7 @@ export function resetRaceBroadcast() {
 }
 
 export function renderTimingTower(race) {
-  return `<div class="tower-header"><span class="live-tag">${icon('flag')} LIVE TIMING</span><h2>DUNE VALLEY <span>GRAND PRIX</span></h2><div class="tower-meta"><span>${RACE_LAPS} LAPS</span><span>~2½ MIN</span><span>${race.field.length} CARS</span></div></div><div class="tower-columns"><span>POS / DRIVER</span><span>GAP</span></div><div id="live-standings" style="--rows:${race.field.length}">${race.field.map(entry => `<div style="--rank:${entry.grid - 1}" data-position="${entry.grid}" class="timing-row ${entry.id === 'you' ? 'is-you' : ''}" data-driver-row="${entry.id}"><strong class="live-position">${entry.grid}</strong><i style="background:${entry.color}"></i><div class="timing-name"><strong><span class="code">${driverCode(entry)}</span>${entry.id === 'you' && entry.teamId ? teamLogo({ id: entry.teamId, name: entry.team }, { paint: entry.color, accent: '#f2f5fb' }, 'tower-logo') : ''}${e(entry.name)}${entry.id === 'you' ? '<em>YOU</em>' : ''}</strong><small></small></div><span class="live-gap">GRID</span><span class="position-change"></span></div>`).join('')}</div><div class="race-engineer"><div class="eyebrow">${icon('sound')} RACE ENGINEER</div><p id="race-radio">Grid is set. Watch the lights.</p></div><div class="car-condition"><div><span>COOLING LOAD</span><strong id="heat-value">—</strong><i><b id="heat-meter"></b></i></div><div><span>TYRE LIFE</span><strong id="tyre-value">—</strong><i><b id="tyre-meter"></b></i></div></div>`;
+  return `<div class="tower-header"><span class="live-tag">${icon('flag')} LIVE TIMING</span><h2>${trackById(race.trackId).title.toUpperCase()} <span>GRAND PRIX</span></h2><div class="tower-meta"><span>${RACE_LAPS} LAPS</span><span>~3 MIN</span><span>${race.field.length} CARS</span></div></div><div class="tower-columns"><span>POS / DRIVER</span><span>GAP</span></div><div id="live-standings" style="--rows:${race.field.length}">${race.field.map(entry => `<div style="--rank:${entry.grid - 1}" data-position="${entry.grid}" class="timing-row ${entry.id === 'you' ? 'is-you' : ''}" data-driver-row="${entry.id}"><strong class="live-position">${entry.grid}</strong><i style="background:${entry.color}"></i><div class="timing-name"><strong><span class="code">${driverCode(entry)}</span>${entry.id === 'you' && entry.teamId ? teamLogo({ id: entry.teamId, name: entry.team }, { paint: entry.color, accent: '#f2f5fb' }, 'tower-logo') : ''}${e(entry.name)}${entry.id === 'you' ? '<em>YOU</em>' : ''}</strong><small></small></div><span class="live-gap">GRID</span><span class="position-change"></span></div>`).join('')}</div><div class="race-engineer"><div class="eyebrow">${icon('sound')} RACE ENGINEER</div><p id="race-radio">Grid is set. Watch the lights.</p></div><div class="car-condition"><div><span>COOLING LOAD</span><strong id="heat-value">—</strong><i><b id="heat-meter"></b></i></div><div><span>TYRE LIFE</span><strong id="tyre-value">—</strong><i><b id="tyre-meter"></b></i></div></div>`;
 }
 export function renderRaceActions(race) {
   return `<div class="action-context"><div class="energy-cells">${[0, 1, 2].map(i => `<i class="${i < race.charges ? 'charged' : ''}"></i>`).join('')}</div><div><strong>ERS <span id="ers-charges">${race.charges}/3</span></strong><span id="ers-hint">Three bursts. Choose your moment.</span></div></div><div class="action-buttons"><button class="button light" data-action="skip-run">Skip to finish ${icon('arrow')}</button><button class="button primary ers-button" data-action="boost" disabled>${icon('bolt')} <span class="ers-label">Deploy ERS</span><kbd>SPACE</kbd></button></div>`;
@@ -88,7 +89,7 @@ function updateBanner(race, rows, elapsed, director) {
     element.dataset.incidentType = event.type; element.dataset.mode = 'live';
     if (element.dataset.key !== key) {
       element.dataset.key = key;
-      element.innerHTML = `<span class="flag ${event.type === 'fire' ? 'red' : 'yellow'}">${event.type === 'fire' ? 'RED ALERT' : 'YELLOW FLAG'} · ${e(trackZone(event.distance).name)}</span><strong><b>${driverCode(row)}</b> ${e(row.name)} · ${e(event.title)}</strong><div><small>${event.type === 'fire' ? 'Race-ending failure · retirement' : `Time cost +${event.loss.toFixed(1)}s`}</small><button data-action="follow-incident" data-driver-id="${e(row.id)}">Follow ${e(row.name)} ${icon('eye')}</button></div>`;
+      element.innerHTML = `<span class="flag ${event.type === 'fire' ? 'red' : 'yellow'}">${event.type === 'fire' ? 'RED ALERT' : 'YELLOW FLAG'} · ${e(trackZone(trackById(race.trackId), event.distance).name)}</span><strong><b>${driverCode(row)}</b> ${e(row.name)} · ${e(event.title)}</strong><div><small>${event.type === 'fire' ? 'Race-ending failure · retirement' : `Time cost +${event.loss.toFixed(1)}s`}</small><button data-action="follow-incident" data-driver-id="${e(row.id)}">Follow ${e(row.name)} ${icon('eye')}</button></div>`;
     }
   } else if (impact) {
     const key = `impact:${impact.id}:${impact.event.type}:${impact.event.lap}`;
@@ -140,7 +141,7 @@ export function updateRaceBroadcast(race, broadcast) {
   const uses = race.boosts.filter(boost => boost.id === 'you'), cooldown = uses.length ? Math.max(0, BOOST_COOLDOWN - (elapsed - uses.at(-1).at)) : 0;
   const ersReady = started && !paused && race.charges > 0 && cooldown === 0 && !you.finished && !you.retired;
   const attack = ersReady && gapAhead !== null && gapAhead < ATTACK_GAP;
-  const zone = document.querySelector('#race-zone'); if (zone) zone.textContent = you.retired ? 'RETIRED' : `YOU · P${you.position} · LAP ${you.lap} · ${you.zone.name}`;
+  const zone = document.querySelector('#race-zone'); if (zone) zone.textContent = you.retired ? 'RETIRED' : `YOU · P${you.position} · LAP ${you.lap} · ${you.zone.name} · ${CONDITIONS[you.zone.condition].label.toUpperCase()}`;
   const gaps = document.querySelector('#race-advantage');
   if (gaps) {
     gaps.textContent = you.retired ? 'Cooling failure ended your race' : you.finished ? 'Chequered flag' : `${ahead ? `${driverCode(ahead)} ahead ${gapAhead.toFixed(1)}s` : 'Leading the race'}${behind ? ` · ${driverCode(behind)} behind ${gapBehind.toFixed(1)}s` : ''}${attack ? ' · ATTACK: deploy ERS' : ''}`;

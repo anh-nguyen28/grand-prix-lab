@@ -1,12 +1,14 @@
-import { BUDGET, PARTS, SLOTS } from './content.js';
+import { BUDGET, PARTS, RACE_LAPS, SLOTS } from './content.js';
+import { buildProfile, sectionOutcome, sectionScore } from './conditions.js';
+import { DEFAULT_TRACK } from './tracks.js';
 import { buildStats, sectorPace } from './simulation.js';
 // Educational setup model. Ratings and event timings are game values, not F1 specifications.
 export const ENGINEERING = {
-  road: { tagline: 'Speed on a clean surface', benefits: 'Low rolling resistance and a light rotating assembly keep the car quick on smooth tarmac.', tradeoff: 'Less purchase on the experimental loose-surface sector. Grip drops as the stint gets longer.', watch: 'Wheelspin and a small dust trail on loose ground; a longer slide late in the race.', ratings: { grip: 42, endurance: 40 }, demo: 'wheelspin' },
-  soft: { tagline: 'Peak grip on tarmac, gone on sand', benefits: 'The softest compound: the quickest tyre on the straight and through the corners.', tradeoff: 'Spins on the loose stretch and wears fastest of all. Like slicks, it is a low-grip tyre on sand.', watch: 'A rapid first lap, then wheelspin in the mystery sector and fading grip late on.', ratings: { grip: 30, endurance: 25 }, demo: 'wheelspin' },
-  paddle: { tagline: 'Built for the dunes', benefits: 'Paddle fins scoop through loose sand: the most grip on the mystery stretch, and they barely wear.', tradeoff: 'The fins drag on tarmac, so the straight and corners are slower.', watch: 'A planted car through the sand, but rivals pull away on the straight.', ratings: { grip: 96, endurance: 92 }, demo: 'wheelspin' },
-  medium: { tagline: 'A little of everything', benefits: 'A middle compound: quicker than grooved tyres on tarmac and calmer than slicks on loose ground.', tradeoff: 'It never leads any single sector. It wears faster than the grooved and endurance tyres.', watch: 'No dramatic slides, and no standout sector either.', ratings: { grip: 60, endurance: 62 }, demo: 'wheelspin' },
-  offroad: { tagline: 'Find grip when the surface changes', benefits: 'A treaded experimental tyre trades some straight-line speed for grip on the loose section.', tradeoff: 'More weight and rolling resistance than slicks. This is a fictional mixed-surface tyre, not a modern F1 dry compound.', watch: 'A calmer line through the loose sector, with slightly less speed on the straight.', ratings: { grip: 78, endurance: 72 }, demo: 'wheelspin' },
+  road: { tagline: 'Speed on a clean surface', benefits: 'Low rolling resistance and a light rotating assembly keep the car quick on smooth tarmac.', tradeoff: 'Little grip in the wet and a mid-range tolerance for grit and heat. Grip drops as the stint gets longer.', watch: 'A slide on wet or gritty sections, and more of it late in the race.', ratings: { grip: 42, endurance: 40 }, demo: 'wheelspin' },
+  soft: { tagline: 'Peak grip and fast warm-up, gone when it gets gritty', benefits: 'The softest compound: the quickest tyre on the straight and through the corners.', tradeoff: 'Shreds on gritty surfaces, overheats and wears fastest of all. Poor in the wet.', watch: 'A rapid first lap, then fading grip on abrasive and hot sections.', ratings: { grip: 30, endurance: 25 }, demo: 'wheelspin' },
+  paddle: { tagline: 'Built for loose, gritty ground', benefits: 'Paddle fins bite through grit and loose surface, and they barely wear.', tradeoff: 'The fins drag on tarmac, so the straight and corners are slower.', watch: 'A planted car on gritty ground, but rivals pull away on the straight.', ratings: { grip: 96, endurance: 92 }, demo: 'wheelspin' },
+  medium: { tagline: 'A little of everything', benefits: 'A middle compound: quicker than grooved tyres on tarmac and calmer than slicks on a mixed-grip surface.', tradeoff: 'It never leads any single sector. It wears faster than the grooved and endurance tyres.', watch: 'No dramatic slides, and no standout sector either.', ratings: { grip: 60, endurance: 62 }, demo: 'wheelspin' },
+  offroad: { tagline: 'Find grip when the surface changes', benefits: 'A treaded experimental tyre trades some straight-line speed for grip on damp and gritty sections.', tradeoff: 'More weight and rolling resistance than slicks. This is a fictional mixed-surface tyre, not a modern F1 dry compound.', watch: 'A calmer line through damp and gritty sections, with slightly less speed on the straight.', ratings: { grip: 78, endurance: 72 }, demo: 'wheelspin' },
   tracks: { tagline: 'Keep the grip for the final laps', benefits: 'The most durable experimental tyre package holds its pace over a long stint.', tradeoff: 'Heavier than the other tyres, so it gives away early acceleration.', watch: 'A slower launch but more consistent late-race sectors.', ratings: { grip: 90, endurance: 94 }, demo: 'wheelspin' },
   electric: { tagline: 'Power with room to breathe', benefits: 'A balanced hybrid-and-cooling package. Medium openings remove heat without a large drag penalty.', tradeoff: 'Less peak output than the attack package.', watch: 'Stable temperatures and consistent pace over eight laps.', ratings: { output: 70, cooling: 78 }, demo: 'overheat' },
   torque: { tagline: 'More power. Less thermal margin.', benefits: 'High output and compact cooling give stronger acceleration.', tradeoff: 'The compact cooling openings struggle late in a long, hot stint. Extra pace comes with one overheating penalty.', watch: 'Strong straights, then a heat warning, cooling vapour and reduced power late in the race. With low-drag aero, heavy braking also exposes brake fade.', ratings: { output: 95, cooling: 35 }, demo: 'overheat' },
@@ -17,8 +19,15 @@ export const ENGINEERING = {
   alloy: { tagline: 'A stable all-round platform', benefits: 'Balanced wing loading gives predictable cornering and straight-line performance.', tradeoff: 'Neither the fastest straight-line package nor the strongest cornering package.', watch: 'A settled car through the technical sector.', ratings: { cornering: 75, straight: 70 }, demo: 'understeer' },
   carbon: { tagline: 'Carry speed through the corners', benefits: 'A larger wing package and light structure help the car stay planted through the technical sector.', tradeoff: 'More aerodynamic drag slows the car on the straight. It also uses more of your budget.', watch: 'Tighter cornering lines and fewer handling incidents.', ratings: { cornering: 95, straight: 48 }, demo: 'understeer' },
   drs: { tagline: 'Open on the straight, closed in the corners', benefits: 'An active flap cuts drag on the straight and adds downforce in corners.', tradeoff: 'Good everywhere, best nowhere, and it costs more than the balanced wing.', watch: 'A two-part wing with a raised flap and bright endplates.', ratings: { cornering: 78, straight: 80 }, demo: 'understeer' },
-  floor: { tagline: 'Grip from underneath', benefits: 'Shaped tunnels under the car suck it to smooth tarmac: huge cornering grip with little drag.', tradeoff: 'On loose ground the floor loses its seal, so the mystery stretch is slower.', watch: 'Skirts along the floor and a rear diffuser. Glued to the corners, unsettled on sand.', ratings: { cornering: 90, straight: 76 }, demo: 'understeer' },
+  floor: { tagline: 'Grip from underneath', benefits: 'Shaped tunnels under the car suck it to smooth tarmac: huge cornering grip with little drag.', tradeoff: 'Over bumps and kerbs the floor loses its seal and the car is unsettled.', watch: 'Skirts along the floor and a rear diffuser. Glued to smooth corners, unsettled on rough ground.', ratings: { cornering: 90, straight: 76 }, demo: 'understeer' },
   scout: { tagline: 'Win the straight. Respect the corner.', benefits: 'Small wings reduce drag and save credits.', tradeoff: 'Less aerodynamic grip. The front can run wide. On slick tyres it can also strike a kerb.', watch: 'Understeer and a wide line. With slick tyres, sparks and a time loss when the car catches the kerb.', ratings: { cornering: 35, straight: 95 }, demo: 'understeer' },
+  hard: { tagline: 'Slow to warm up, hard to wear out', benefits: 'A tough compound that resists grit and heat.', tradeoff: 'Little grip when cold and less dry grip than softer tyres.', watch: 'A steady car that holds its pace late in the race.', ratings: { grip: 55, endurance: 96 }, demo: 'wheelspin' },
+  inter: { tagline: 'Made for damp tarmac', benefits: 'Shallow channels clear a thin film of water and still grip a little when it dries.', tradeoff: 'Overheats in the heat and wears quickly on dry, gritty ground.', watch: 'Confident on wet patches, nervous when it is hot.', ratings: { grip: 66, endurance: 50 }, demo: 'wheelspin' },
+  wet: { tagline: 'Built for standing water', benefits: 'Deep tread clears standing water and stops aquaplaning.', tradeoff: 'Slow, fragile and low on grip on a dry surface.', watch: 'Spray on the straights, a lot of squirm on dry corners.', ratings: { grip: 72, endurance: 38 }, demo: 'wheelspin' },
+  stiff: { tagline: 'Light and cheap', benefits: 'A light aluminium frame with stiff suspension. Saves credits.', tradeoff: 'Bumps and kerbs rattle the car and can break parts.', watch: 'Crisp on smooth ground, upset on rough surfaces.', ratings: { stability: 25, lightness: 90 }, demo: 'understeer' },
+  sprung: { tagline: 'Soak up the bumps', benefits: 'Soft springs keep the tyres on rough ground.', tradeoff: 'A heavy steel frame costs speed and tyre life.', watch: 'A calm car over washboard ground.', ratings: { stability: 60, lightness: 40 }, demo: 'understeer' },
+  titanium: { tagline: 'Adaptive and strong', benefits: 'Adaptive dampers and a strong, light frame cope with kerbs and bumps.', tradeoff: 'Costs a lot of your budget.', watch: 'A planted car over the roughest sections.', ratings: { stability: 85, lightness: 85 }, demo: 'understeer' },
+  monocoque: { tagline: 'The lightest, stiffest tub', benefits: 'The lightest frame: the best top speed and tyre life, with strong stability.', tradeoff: 'The most expensive chassis.', watch: 'Fast, stable and hard on the budget.', ratings: { stability: 80, lightness: 100 }, demo: 'understeer' },
   camera: { tagline: 'Start with what you can see', benefits: 'Three visual observations help you identify the mystery surface.', tradeoff: 'No temperature or subsurface measurements. It still provides enough evidence to solve the round.', watch: 'The first scan locks your sensor. Sensors do not prevent mechanical failures.', ratings: null },
   thermal: { tagline: 'Read heat and moisture', benefits: 'Three observations reveal temperature and moisture patterns.', tradeoff: 'Costs 4 credits more than the camera, credits your car could use. Temperature alone cannot identify a surface.', watch: 'Combine all three clues before making your prediction. It does not cool the car.', ratings: null },
   lidar: { tagline: 'Map the shape of the ground', benefits: 'Three laser scans describe the shape and movement of the surface.', tradeoff: 'Costs 6 credits more than the camera. A different route to the same answer, not a racing advantage.', watch: 'A dome on a mast above the driver. It does not steer the car.', ratings: null },
@@ -32,6 +41,11 @@ export const INCIDENTS = {
   brakefade: { title: 'Braking performance lost', label: 'BRAKE FADE', cause: 'Repeated braking and restricted cooling reduce braking performance.', remedy: 'Use the balanced cooling package and a more stable aero setup.', effect: 'brake', loss: 2.8, phase: .76, warning: 'Brakes are very hot into this corner.' },
   contact: { title: 'Kerb strike', label: 'CONTACT', cause: 'An unsettled low-downforce car runs wide and strikes the raised outside kerb.', remedy: 'Add cornering stability. Contact depends on the line and the obstacle, not simply the car being fast.', effect: 'sparks', loss: 4.2, phase: .82, warning: 'Careful on the exit. That kerb is close.' },
   fire: { title: 'Blocked brake duct', label: 'BRAKE FIRE', cause: 'Restricted brake airflow cannot remove repeated-braking heat. Smoke builds into a brake fire and the car must stop.', remedy: 'Use a package with enough brake cooling for the full race distance. Heat must have somewhere to go.', effect: 'fire', loss: 8, phase: .72, warning: 'Smoke from the brakes. The car cannot last.' },
+  crash: { title: 'Crash', label: 'CRASH', cause: 'The car was asked for more grip or stability than it has and left the track.', remedy: 'Fit parts that match this section. The forecast names the weak stat.', effect: 'sparks', loss: 12, phase: .5, warning: 'This section is beyond your car. Brace for a crash.' },
+  aquaplane: { title: 'Aquaplaning', label: 'NO GRIP', cause: 'The tyres cannot clear the standing water and float on top of it.', remedy: 'Fit wet tyres, which have deep channels.', effect: 'splash', loss: 2.6, phase: .5, warning: 'Standing water ahead. Aquaplaning risk.' },
+  coldslide: { title: 'Cold tyres', label: 'LOW GRIP', cause: 'The tyres have not reached working temperature, so grip is low.', remedy: 'Use a compound that warms up fast, and add downforce.', effect: 'slide', loss: 2.2, phase: .5, warning: 'Shaded and cold. The tyres are slow to warm up.' },
+  tyreshred: { title: 'Tyres shredded', label: 'TYRE WEAR', cause: 'Gritty tarmac tears into a soft compound.', remedy: 'Use hard or endurance tyres on abrasive surfaces.', effect: 'dust', loss: 2.4, phase: .5, warning: 'Gritty surface ahead. Soft tyres will shred.' },
+  bumpbreak: { title: 'Parts shaken loose', label: 'BUMPS', cause: 'Rough ground shakes the car and loosens parts on a stiff chassis.', remedy: 'Fit softer suspension or a stronger chassis.', effect: 'sparks', loss: 3, phase: .5, warning: 'Rough ground ahead. Parts can shake loose.' },
 };
 
 export function engineeringStats(build) {
@@ -40,44 +54,77 @@ export function engineeringStats(build) {
 const clamp = value => Math.round(Math.max(5, Math.min(100, value)));
 // The spec sheet is read directly from the same pace data that times the race.
 export function specSheet(build) {
-  const stats = engineeringStats(build);
+  const profile = buildProfile(build);
   return [
-    { id: 'straight', label: 'Top speed', value: clamp(50 - sectorPace(build, 'straight') * 45) },
-    { id: 'technical', label: 'Cornering', value: clamp(50 - sectorPace(build, 'technical') * 90) },
-    { id: 'loose', label: 'Loose grip', value: clamp(50 - sectorPace(build, 'loose') * 120) },
-    { id: 'cooling', label: 'Cooling', value: stats.cooling },
-    { id: 'endurance', label: 'Tyre life', value: stats.endurance },
+    { id: 'straight', label: 'Top speed', value: clamp(profile.topSpeed) },
+    { id: 'technical', label: 'Cornering', value: clamp(.5 * profile.dryGrip + .5 * profile.downforce) },
+    { id: 'wet', label: 'Wet grip', value: clamp(profile.wetGrip) },
+    { id: 'cooling', label: 'Cooling', value: clamp(profile.cooling) },
+    { id: 'endurance', label: 'Tyre life', value: clamp(.5 * profile.abrasion + .5 * profile.heatTol) },
+    { id: 'stability', label: 'Stability', value: clamp(profile.stability) },
   ];
 }
-// Incidents follow part traits, so new parts join the system by declaring a trait.
-const has = (build, trait) => SLOTS.some(slot => PARTS[build[slot]].traits?.includes(trait));
-export function setupRisks(build) {
-  const risks = [];
-  if (has(build, 'lowGrip')) risks.push({ type: 'wheelspin', text: 'Loose-surface grip', detail: 'Expect a slide in the mystery sector and more wear late in the stint.' });
-  if (has(build, 'lowDownforce')) risks.push({ type: 'understeer', text: 'Runs wide in corners', detail: has(build, 'lowGrip') ? 'Low downforce on low-grip tyres: understeer, then a kerb strike.' : 'Low downforce exposes the car to understeer in the corners.' });
-  if (has(build, 'sprint')) risks.push({type:'fire',text:'Cooling cannot last this race',detail:'The sprint package overheats, develops a brake fire and retires on lap 5. Choose balanced cooling to finish.'});
-  if (has(build, 'hot')) risks.push({ type: 'overheat', text: 'Limited cooling margin', detail: 'The attack package loses power once, late in the long stint.' });
-  if (has(build, 'hot') && has(build, 'lowDownforce')) risks.push({ type: 'brakefade', text: 'Braking heat', detail: 'High straight-line pace plus compact cooling exposes brake fade.' });
-  return risks;
+const round1 = value => Math.round(value * 10) / 10;
+const SEVERITY = { fire: 3, crash: 2 };
+
+// Events attach to lap distance inside the failing section. A car that keeps failing the same section is
+// reported on the first failing lap and then every third lap; the other laps cost half as much, quietly.
+// A section can crash a car once; after that the driver backs off to a plain incident.
+export function planIncidents(build, track = DEFAULT_TRACK) {
+  const profile = buildProfile(build), events = [], quiet = {}, firstFail = {}, crashed = new Set();
+  let retired = false;
+  for (let lap = 1; lap <= RACE_LAPS && !retired; lap++) {
+    for (const section of track.sections) {
+      if (retired) break;
+      let outcome = sectionOutcome(profile, section, lap);
+      if (outcome.kind === 'clean') continue;
+      const key = `${lap}:${section.id}`;
+      if (outcome.kind === 'slow') { quiet[key] = outcome.loss; continue; }
+      if (outcome.kind === 'crash' && crashed.has(section.id)) outcome = { ...outcome, kind: 'incident', type: section.incident, loss: 4 };
+      if (outcome.kind === 'crash') crashed.add(section.id);
+      firstFail[section.id] ??= lap;
+      if (outcome.kind !== 'fire' && (lap - firstFail[section.id]) % 3 !== 0) { quiet[key] = round1(outcome.loss * .5); continue; }
+      events.push({ ...INCIDENTS[outcome.type], type: outcome.type, lap, loss: outcome.loss, warning: section.warning, section: section.id, distance: lap - 1 + section.from + .02 });
+      if (outcome.kind === 'fire') retired = true;
+    }
+  }
+  return { events: events.sort((a, b) => a.distance - b.distance), quiet };
+}
+export const buildIncidents = (build, track = DEFAULT_TRACK) => planIncidents(build, track).events;
+
+// A single lap for the practice run: every weak section shows the worst thing that happens there over the race
+// (a fire beats a crash beats the rest, then the biggest time loss), once, at the start of the section.
+// `raceLap` keeps the lap it first happens on in the race. A fire is shown but does not end the lap.
+export function previewIncidents(build, track = DEFAULT_TRACK) {
+  const worst = new Map();
+  for (const event of buildIncidents(build, track)) {
+    const current = worst.get(event.section), rank = item => [SEVERITY[item.type] ?? 1, item.loss];
+    if (!current || rank(event)[0] > rank(current)[0] || (rank(event)[0] === rank(current)[0] && event.loss > current.loss)) worst.set(event.section, event);
+  }
+  return track.sections.filter(section => worst.has(section.id)).map(section => {
+    const event = worst.get(section.id);
+    return { ...event, raceLap: event.lap, lap: 1, distance: section.from + .02 };
+  });
 }
 
-// Events are attached to lap distance. Boosting changes when a car reaches them,
-// but never moves a corner incident onto an unrelated section of track.
-export function buildIncidents(build) {
-  const events = [];
-  const add = (type, lap, loss) => events.push({ ...INCIDENTS[type], type, lap, loss: loss ?? INCIDENTS[type].loss, distance: lap - 1 + INCIDENTS[type].phase });
-  if (has(build, 'lowGrip')) { add('wheelspin', 1, 1.2); add('wheelspin', 6, 1.8); }
-  if (has(build, 'lowDownforce')) { add('understeer', 2, 1.5); if (has(build, 'lowGrip')) add('contact', 5, 3); }
-  if (has(build, 'sprint')) { add('overheat',2); add('brakefade',3); add('fire',5,9); }
-  if (has(build, 'hot')) add('overheat', 6, 2.2);
-  if (has(build, 'hot') && has(build, 'lowDownforce')) add('brakefade', 3, 2.2);
-  return events.sort((a, b) => a.distance - b.distance);
+// One line per weak section, led by the worst thing that happens there (a fire beats a crash beats the rest).
+export function setupRisks(build, track = DEFAULT_TRACK) {
+  const worst = new Map();
+  for (const event of buildIncidents(build, track)) {
+    const current = worst.get(event.section);
+    if (!current || (SEVERITY[event.type] ?? 1) > (SEVERITY[current.type] ?? 1)) worst.set(event.section, event);
+  }
+  return [...worst.values()].map(event => {
+    const section = track.sections.find(item => item.id === event.section);
+    const detail = event.type === 'fire' ? `${event.cause} The car retires on lap ${event.lap}. ${event.remedy}` : `${event.cause} ${event.remedy}`;
+    return { type: event.type, section: section.id, text: `${event.title} · ${section.name}`, detail };
+  });
 }
 
 // Every incident this setup will meet in the race, grouped so practice can warn about it.
-export function raceRiskForecast(build) {
+export function raceRiskForecast(build, track = DEFAULT_TRACK) {
   const groups = new Map();
-  for (const event of buildIncidents(build)) {
+  for (const event of buildIncidents(build, track)) {
     const group = groups.get(event.type) || { type: event.type, title: event.title, laps: [], loss: 0, retirement: false };
     group.laps.push(event.lap); group.loss = Math.round((group.loss + (event.type === 'fire' ? 0 : event.loss)) * 10) / 10; group.retirement ||= event.type === 'fire';
     groups.set(event.type, group);
@@ -86,9 +133,24 @@ export function raceRiskForecast(build) {
 }
 
 // Single-part swaps that remove an incident type and still fit the budget.
-export function incidentFixes(build, type) {
+export function incidentFixes(build, type, track = DEFAULT_TRACK) {
   return SLOTS.flatMap(slot => Object.values(PARTS).filter(part => part.slot === slot && part.id !== build[slot]).filter(part => {
     const next = { ...build, [slot]: part.id };
-    return buildStats(next).cost <= BUDGET && !buildIncidents(next).some(event => event.type === type);
+    return buildStats(next).cost <= BUDGET && !buildIncidents(next, track).some(event => event.type === type);
   }).map(part => ({ slot, id: part.id, name: part.name, cost: part.cost - PARTS[build[slot]].cost })));
+}
+
+// For each section: the outcome at lap 1, the stat furthest below what the section needs, and the best
+// single-part swaps (by score gain) that fit the budget.
+export function sectionReport(build, track = DEFAULT_TRACK) {
+  const profile = buildProfile(build);
+  return track.sections.map(section => {
+    const outcome = sectionOutcome(profile, section, 1);
+    const weakStat = Object.keys(section.demand).sort((a, b) => profile[a] - profile[b])[0];
+    const advice = outcome.kind === 'clean' ? [] : SLOTS.flatMap(slot => Object.values(PARTS).filter(part => part.slot === slot && part.id !== build[slot]).map(part => {
+      const next = { ...build, [slot]: part.id };
+      return { slot, id: part.id, name: part.name, cost: part.cost - PARTS[build[slot]].cost, total: buildStats(next).cost, gain: round1(sectionScore(buildProfile(next), section, 1) - outcome.score) };
+    })).filter(item => item.total <= BUDGET && item.gain > 0).sort((a, b) => b.gain - a.gain).slice(0, 3);
+    return { section, condition: section.condition, outcome, weakStat, advice };
+  });
 }

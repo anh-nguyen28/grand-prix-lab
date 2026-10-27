@@ -1,4 +1,5 @@
-import { BUDGET, COURSE, DEFAULT_BUILD, DEMO_TEAMS, cleanLivery, cleanTeam, MAX_CHANGED_SLOTS, PARTS, PRACTICE_RUNS, SLOTS } from './content.js';
+import { BUDGET, DEFAULT_BUILD, MAX_CHANGED_SLOTS, PARTS, PRACTICE_RUNS, SLOTS, cleanLivery, cleanTeam, rivalsFor } from './content.js';
+import { DEFAULT_TRACK_ID, TRACKS, trackById } from './tracks.js';
 import { buildStats, racePoints, simulate } from './simulation.js';
 import { addPlayerBoost, createRace, finishRace } from './race.js';
 
@@ -7,9 +8,9 @@ function startingBuild(build) {
   const valid = build && SLOTS.every(slot => PARTS[build[slot]]?.slot === slot) && buildStats(build).cost <= BUDGET;
   return valid ? Object.fromEntries(SLOTS.map(slot => [slot, build[slot]])) : { ...DEFAULT_BUILD };
 }
-export function createGame(profile = { name: 'You', mode: 'solo' }, build = null) {
+export function createGame(profile = { name: 'You', mode: 'solo' }, build = null, trackId = DEFAULT_TRACK_ID) {
   return {
-    version: 1, phase: 'practice', profile: { ...profile, livery: cleanLivery(profile.livery), team: cleanTeam(profile.team) }, build: startingBuild(build),
+    version: 1, phase: 'practice', trackId: TRACKS.some(track => track.id === trackId) ? trackId : DEFAULT_TRACK_ID, profile: { ...profile, livery: cleanLivery(profile.livery), team: cleanTeam(profile.team) }, build: startingBuild(build),
     clues: [], sensorLocked: false, prediction: null, predictionLocked: false,
     runs: [], qualifying: null, qualifyingBuild: null, field: [], race: null, score: null,
   };
@@ -29,6 +30,13 @@ export function transition(previous, command) {
       const name = String(command.name ?? '').trim().slice(0, 24);
       if (!name) return reject('Give your garage a name first.');
       state.profile = { ...state.profile, name, mode: command.mode === 'team' ? 'team' : 'solo' };
+      break;
+    }
+    case 'SELECT_TRACK': {
+      if (state.phase !== 'practice') return reject('Finish this round before choosing another track.');
+      if (!TRACKS.some(track => track.id === command.id)) return reject('That track is not on the calendar.');
+      state.trackId = command.id;
+      Object.assign(state, { clues: [], sensorLocked: false, prediction: null, predictionLocked: false, runs: [] });
       break;
     }
     case 'SET_LIVERY':
@@ -55,26 +63,28 @@ export function transition(previous, command) {
       if (state.phase !== 'practice') return reject('Field research closes after practice.');
       if (state.clues.length >= 3) return reject('You have collected all three observations.');
       state.sensorLocked = true;
-      state.clues.push(COURSE.clues[state.build.sensor][state.clues.length]);
+      state.clues.push(trackById(state.trackId).mystery.clues[state.build.sensor][state.clues.length]);
       break;
-    case 'PREDICT':
+    case 'PREDICT': {
+      const mystery = trackById(state.trackId).mystery;
       if (state.phase !== 'practice' || state.predictionLocked) return reject('Your prediction is locked.');
-      if (!['road', 'sand', 'rock'].includes(command.terrain)) return reject('Choose road, sand, or rock.');
+      if (!mystery.options.includes(command.terrain)) return reject(`Choose ${mystery.options.join(', ')}.`);
       state.prediction = command.terrain;
       state.predictionLocked = true;
       break;
+    }
     case 'PRACTICE':
       if (state.phase !== 'practice') return reject('Practice has finished.');
       if (state.runs.length >= PRACTICE_RUNS) return reject('Both practice runs are used. You can still change your build.');
       state.predictionLocked = true;
-      state.runs.push(simulate(state.build));
+      state.runs.push(simulate(state.build, trackById(state.trackId)));
       break;
     case 'QUALIFY':
       if (state.phase !== 'practice') return reject('This qualifying run is already locked.');
       state.predictionLocked = true;
       state.sensorLocked = true;
       state.qualifyingBuild = { ...state.build };
-      state.qualifying = simulate(state.build);
+      state.qualifying = simulate(state.build, trackById(state.trackId));
       state.phase = 'qualifying';
       break;
     case 'FINISH_QUALIFY':
@@ -83,7 +93,7 @@ export function transition(previous, command) {
       break;
     case 'RACE': {
       if (state.phase !== 'adjust') return reject('Complete qualifying before entering the race.');
-      state.race = createRace([{ id: 'you', name: state.profile.name, team: state.profile.team.name, teamId: state.profile.team.id, color: state.profile.livery.paint, build: state.build }, ...DEMO_TEAMS], state.qualifyingBuild);
+      state.race = createRace([{ id: 'you', name: state.profile.name, team: state.profile.team.name, teamId: state.profile.team.id, color: state.profile.livery.paint, build: state.build }, ...rivalsFor(state.trackId)], state.qualifyingBuild, trackById(state.trackId));
       state.phase = 'race';
       break;
     }
@@ -98,7 +108,7 @@ export function transition(previous, command) {
       if (state.phase !== 'race') return reject('Race results are not ready.');
       state.field = finishRace(state.race);
       const player = state.field.find(entry => entry.id === 'you');
-      const bonus = state.prediction === COURSE.target ? 3 : 0;
+      const bonus = state.prediction === trackById(state.trackId).mystery.target ? 3 : 0;
       state.score = { race: player.retired?0:racePoints(player.place), prediction: bonus, total: (player.retired?0:racePoints(player.place)) + bonus, place: player.place };
       state.phase = 'results';
       break;

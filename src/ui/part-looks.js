@@ -12,6 +12,9 @@ export const TYRE_LOOKS = {
   offroad: { stripe: '#ffe168', width: 1.05, tread: 'grooves' },
   tracks: { stripe: '#ebeff6', width: 1.12, tread: 'blocks' },
   paddle: { stripe: '#ff9a3d', width: 1.1, tread: 'paddles' },
+  hard: { stripe: '#e8eaee', width: 1.04, tread: 'blocks' },
+  inter: { stripe: '#4caf9a', width: 1.02, tread: 'grooves' },
+  wet: { stripe: '#4f8dff', width: 1.06, tread: 'grooves' },
 };
 
 // inlet: sidepod opening height; cover: engine cover height; extra: the unit's visible signature.
@@ -38,4 +41,12 @@ export const SENSOR_LOOKS = {
   thermal: { body: '#ff8a4f', lens: '#ff3b4f' },
   radar: { body: '#c9c6ff' },
   lidar: { body: '#1c2433', ring: PALETTE.cyan },
+};
+
+// arms: suspension arm thickness; tub: floor colour; accent: highlight strip (null for none).
+export const CHASSIS_LOOKS = {
+  stiff: { arms: 1.25, tub: '#98a4b5', accent: null },
+  sprung: { arms: .75, tub: '#6e7683', accent: '#e0a050' },
+  titanium: { arms: .9, tub: '#8fa0b6', accent: PALETTE.cyan },
+  monocoque: { arms: 1, tub: '#20252e', accent: '#ffffff' },
 };

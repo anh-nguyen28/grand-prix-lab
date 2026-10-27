@@ -28,8 +28,9 @@ test('race presentation: driver names are separated and the lap display stays cl
   expect(await page.locator('#race-clock').textContent()).toBe(clock);
   await expect(page.locator('[data-action="boost"]')).toBeDisabled();
   await page.getByRole('button',{name:'Resume race'}).click();
-  await page.getByRole('button',{name:'Change playback speed'}).click();
-  await expect(page.getByRole('button',{name:'Change playback speed'})).toHaveText('2×');
+  const speed=page.getByRole('button',{name:'Change playback speed'});
+  // The speed button cycles 1×, 1.5×, 2×, 0.5× and back to 1×.
+  for(const expected of ['1.5×','2×','0.5×','1×','1.5×','2×']){await speed.click();await expect(speed).toHaveText(expected);}
   await expect(page.locator('#incident-banner')).toContainText('YELLOW FLAG',{timeout:45000});
   await page.getByRole('button',{name:'Pause race'}).click();
   await expect(page.locator('#incident-banner')).toBeVisible();

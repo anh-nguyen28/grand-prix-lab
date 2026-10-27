@@ -27,11 +27,16 @@ function pick(lines, seed) {
 
 // Rival chatter is tied to something that really happened, and often to the part that caused it.
 const LINES = {
-  wheelspin: ['Slicks on sand. Lesson learned 😅', 'Should have read the sensor clues…', 'Zero grip in the mystery stretch!'],
+  wheelspin: ['Wrong tyres for that surface. Lesson learned 😅', 'Should have read the sensor clues…', 'Zero grip out there!'],
   understeer: ['The front just would not turn 😬', 'Low downforce, wide line. Noted.', 'Missed the apex by a mile'],
   overheat: ['Temps through the roof 🥵', 'Power unit is cooking. Too greedy?', 'Losing power… cooling was the weak spot'],
   brakefade: ['Brakes are fading!', 'Pedal is going long into the corner'],
   contact: ['Hit the kerb 💥', 'Sparks everywhere, sorry!'],
+  crash: ['That one hurt. Wrong car for this corner 😵', 'Went off. The setup was not ready for that', 'Big crash, big lesson'],
+  aquaplane: ['Aquaplaning! No grip at all 🌊', 'Should have fitted wet tyres', 'Floating on the straight…'],
+  coldslide: ['Tyres are not warm yet 🥶', 'No grip in the cold', 'Cold tyres, cold lap'],
+  tyreshred: ['The grit is eating my tyres', 'Soft tyres were a mistake here', 'Tyres are shredded'],
+  bumpbreak: ['The bumps are shaking the car apart', 'Stiff chassis was a mistake', 'Parts are rattling loose'],
   fire: ['FIRE?! That sprint package was a trap 🔥', 'Car is done. Cooling matters, everyone!'],
   overtakeWinner: ['See you! 👋', 'Clean move 😎', 'ERS timing paid off', 'Got you on the straight!'],
   overtakeLoser: ['Nooo, not on the straight', 'I will get you back', 'Fair move, well driven'],

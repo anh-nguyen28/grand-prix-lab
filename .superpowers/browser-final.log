@@ -1,0 +1,9 @@
+
+Running 8 tests using 1 worker
+
+  ✓  1 tests/browser/assembly.spec.js:9:1 › physical assembly, part details, safe alternatives, and an isolated brake-fire demo (24.7s)
+  ✓  2 tests/browser/assembly.spec.js:40:1 › the chassis slot has its own tab, fitting point and parts (4.2s)
+  ✓  3 tests/browser/presentation.spec.js:5:1 › race presentation: driver names are separated and the lap display stays clear of controls (42.4s)
+  ✓  4 tests/browser/retirement.spec.js:3:1 › a scored race shows cooling failure, brake fire, retirement and zero finishing points (1.1m)
+  ✓  5 tests/browser/tracks.spec.js:3:1 › a full race on Mountain Pass classifies everyone, shows crashes and aquaplaning, and retires nobody (25.0s)
+  ✓  6 tests/browser/workflow.spec.js:3:1 › desktop: scan, predict, improve, qualify, adjust, race, and reveal (3.4m)
