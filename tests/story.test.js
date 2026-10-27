@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, transition } from '../shared/game.js';
 import { storyChapters } from '../shared/story.js';
+import { TRACKS } from '../shared/tracks.js';
 
 function act(state, command) { const result = transition(state, command); assert.equal(result.ok, true, result.message); return result.state; }
 const current = state => storyChapters(state).find(chapter => chapter.status === 'current')?.id;
@@ -13,9 +14,9 @@ test('the story follows the round from first look to the real world', () => {
   for (let i = 0; i < 3; i++) state = act(state, { type: 'SCAN' });
   assert.equal(current(state), 'label');
   assert.equal(storyChapters(state)[0].autoOpen, false);
-  state = act(state, { type: 'PREDICT', terrain: 'sand' });
+  state = act(state, { type: 'PREDICT', terrain: 'abrasive' });
   assert.equal(current(state), 'train');
-  assert.match(storyChapters(state)[2].lines[0], /Sand/);
+  assert.match(storyChapters(state)[2].lines[0], /Abrasive/);
   state = act(state, { type: 'PRACTICE' });
   assert.match(storyChapters(state)[3].lines[0], /Run 1/);
   state = act(act(state, { type: 'QUALIFY' }), { type: 'FINISH_QUALIFY' });
@@ -38,4 +39,14 @@ test('skipping the label is acknowledged without blocking the story', () => {
   const state = act(createGame(), { type: 'PRACTICE' });
   assert.equal(current(state), 'train');
   assert.match(storyChapters(state)[2].lines[0], /without a label/);
+});
+
+test('story copy names the selected track and its mystery section, never a hard-coded surface', () => {
+  for (const track of TRACKS) {
+    const state = createGame(undefined, null, track.id);
+    const text = JSON.stringify(storyChapters(state));
+    assert.ok(!/sand|road, sand or rock/i.test(text), `${track.id} still mentions sand`);
+    assert.ok(text.includes(track.title), `${track.id}: no track name`);
+    assert.ok(text.toLowerCase().includes(track.sections.find(section => section.id === track.mystery.section).name.toLowerCase()), `${track.id}: no mystery section`);
+  }
 });

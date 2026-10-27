@@ -1,7 +1,8 @@
-import { BOOST_CHARGES, BOOST_COOLDOWN, BOOST_GAIN, BOOST_SECONDS, GRID_GAP, PARTS, RACE_LAPS, SECTORS } from './content.js';
-import { buildIncidents, engineeringStats, INCIDENTS } from './engineering.js';
+import { BOOST_CHARGES, BOOST_COOLDOWN, BOOST_GAIN, BOOST_SECONDS, GRID_GAP, PARTS, RACE_LAPS } from './content.js';
+import { engineeringStats, INCIDENTS, planIncidents, previewIncidents } from './engineering.js';
 import { sectorPace, simulate } from './simulation.js';
-import { TRACK_ZONES, trackZone } from './track.js';
+import { DEFAULT_TRACK, trackById, trackSegments, trackZone } from './tracks.js';
+
 
 const round = n => Math.round(n * 1000) / 1000;
 export const WARNING_SECONDS = 3;
@@ -11,7 +12,9 @@ function noise(id, lap, sector) {
   return ((hash >>> 0) % 1000) / 1000 - .5;
 }
 
-function buildTimeline(segments, incidents) {
+const eventSpan = event => event.type === 'fire' ? .003 : .085;
+// One timeline piece per section per lap. Incidents add their loss over a short stretch of the section.
+function buildTimeline(segments, incidents, sections) {
   const timeline = [], events = []; let clock = 0;
   function append(from, to, seconds, event = null) {
     if (to <= from) return;
@@ -19,40 +22,42 @@ function buildTimeline(segments, incidents) {
     timeline.push(piece); clock += seconds;
     if (event) events.push({ ...event, start: piece.start, end: clock, from, to });
   }
-  for(let i=0;i<segments.length;i++){
-    const from=i/3,to=(i+1)/3,lap=Math.floor(i/3);
-    const eventsHere=incidents.filter(item=>item.distance>=from&&item.distance<to);
-    const edges=[from,to,...TRACK_ZONES.flatMap(zone=>[lap+zone.from,lap+zone.to]),...eventsHere.flatMap(event=>[event.distance,Math.min(to,event.distance+(event.type==='fire'?.003:.085))])].filter(edge=>edge>=from&&edge<=to).sort((a,b)=>a-b);
-    const unique=[...new Set(edges)],chunks=[];
-    for(let j=0;j<unique.length-1;j++){
-      const start=unique[j],end=unique[j+1];if(end-start<1e-9)continue;
-      const event=eventsHere.find(item=>start>=item.distance-1e-9&&start<Math.min(to,item.distance+(item.type==='fire'?.003:.085))-1e-9);
-      chunks.push({from:start,to:end,weight:(end-start)*trackZone((start+end)/2).pace,event});
+  for (let i = 0; i < segments.length; i++) {
+    const lap = Math.floor(i / sections.length), section = sections[i % sections.length];
+    const from = lap + section.from, to = lap + section.to;
+    const eventsHere = incidents.filter(item => item.distance >= from - 1e-9 && item.distance < to - 1e-9);
+    const edges = [from, to, ...eventsHere.flatMap(event => [event.distance, Math.min(to, event.distance + eventSpan(event))])].filter(edge => edge >= from && edge <= to).sort((a, b) => a - b);
+    const unique = [...new Set(edges)], chunks = [];
+    for (let j = 0; j < unique.length - 1; j++) {
+      const start = unique[j], end = unique[j + 1]; if (end - start < 1e-9) continue;
+      const event = eventsHere.find(item => start >= item.distance - 1e-9 && start < Math.min(to, item.distance + eventSpan(item)) - 1e-9);
+      chunks.push({ from: start, to: end, weight: end - start, event });
     }
-    const sum=chunks.reduce((total,chunk)=>total+chunk.weight,0);
-    for(const chunk of chunks){
-      const event=chunk.event,eventSpan=event?Math.min(to,event.distance+(event.type==='fire'?.003:.085))-event.distance:1;
-      append(chunk.from,chunk.to,segments[i].time*chunk.weight/sum+(event?event.loss*(chunk.to-chunk.from)/eventSpan:0),event);
+    const sum = chunks.reduce((total, chunk) => total + chunk.weight, 0);
+    for (const chunk of chunks) {
+      const event = chunk.event, span = event ? Math.min(to, event.distance + eventSpan(event)) - event.distance : 1;
+      append(chunk.from, chunk.to, segments[i].time * chunk.weight / sum + (event ? event.loss * (chunk.to - chunk.from) / span : 0), event);
     }
   }
-  // One incident may cross a braking boundary. Expose it as one event.
-  const merged=[];
-  for(const event of events){const previous=merged.at(-1);if(previous&&previous.distance===event.distance&&previous.type===event.type){previous.end=event.end;previous.to=event.to;}else merged.push({...event});}
-  return { timeline, events:merged, time: round(clock) };
+  // One incident may cross a boundary. Expose it as one event.
+  const merged = [];
+  for (const event of events) { const previous = merged.at(-1); if (previous && previous.distance === event.distance && previous.type === event.type) { previous.end = event.end; previous.to = event.to; } else merged.push({ ...event }); }
+  return { timeline, events: merged, time: round(clock) };
 }
 
-export function createRace(entries, qualifyingBuild) {
-  const grid = entries.map(entry => ({ ...entry, qualifying: simulate(entry.id === 'you' ? qualifyingBuild : entry.build) }))
+export function createRace(entries, qualifyingBuild, track = DEFAULT_TRACK) {
+  const sections = trackSegments(track);
+  const grid = entries.map(entry => ({ ...entry, qualifying: simulate(entry.id === 'you' ? qualifyingBuild : entry.build, track) }))
     .sort((a, b) => a.qualifying.time - b.qualifying.time || a.id.localeCompare(b.id));
   const field = grid.map((entry, gridIndex) => {
-    const setup = simulate(entry.build), tyre = PARTS[entry.build.wheels];
-    const segments = Array.from({ length: RACE_LAPS }, (_, lap) => setup.segments.map((segment, sector) => ({
-      ...segment, lap: lap + 1, sector: sector + 1,
-      time: round(9 + sectorPace(entry.build, SECTORS[sector]) + lap * tyre.wear + noise(entry.id, lap, sector) * .18 + (lap === 0 && sector === 0 ? tyre.launch ?? 0 : 0)),
+    const tyre = PARTS[entry.build.wheels], incidentPlan = planIncidents(entry.build, track);
+    const segments = Array.from({ length: RACE_LAPS }, (_, lap) => sections.map((segment, index) => ({
+      id: segment.id, name: segment.name, terrain: segment.condition, lap: lap + 1, sector: index + 1,
+      time: round(segment.base + sectorPace(entry.build, segment.sector) * segment.share + lap * tyre.wear * 3 / sections.length + noise(entry.id, lap, segment.id) * .18 + (lap === 0 && index === 0 ? tyre.launch ?? 0 : 0) + (incidentPlan.quiet[`${lap + 1}:${segment.id}`] ?? 0)),
     }))).flat();
-    const plan = buildTimeline(segments, buildIncidents(entry.build));
-    const retirement=plan.events.find(event=>event.type==='fire')||null;
-    const incidents=plan.events.filter(event=>!retirement||event.start<=retirement.end);
+    const plan = buildTimeline(segments, incidentPlan.events, sections);
+    const retirement = plan.events.find(event => event.type === 'fire') || null;
+    const incidents = plan.events.filter(event => !retirement || event.start <= retirement.end);
     const lapEnds = Array.from({ length: RACE_LAPS + 1 }, (_, lap) => lap === 0 ? 0 : virtualTimeAtDistance({ timeline: plan.timeline }, lap));
     const lapTimes = lapEnds.slice(1).map((end, lap) => round(end - lapEnds[lap]));
     return { ...entry, grid: gridIndex + 1, startDelay: gridIndex * GRID_GAP, timeline: plan.timeline, incidents, retirement, lapTimes,
@@ -61,18 +66,33 @@ export function createRace(entries, qualifyingBuild) {
   const boosts = field.filter(entry => entry.id !== 'you').flatMap((entry, index) => [
     { id: entry.id, at: 39 + index * 2.3 }, { id: entry.id, at: 99 + index * 1.9 }, { id: entry.id, at: 159 + index * 1.7 },
   ]);
-  return { laps: RACE_LAPS, field, boosts, maxTime: Math.max(...field.map(entry => (entry.retirement?.end ?? entry.result.time) + entry.startDelay)), charges: BOOST_CHARGES };
+  return { laps: RACE_LAPS, trackId: track.id, field, boosts, maxTime: Math.max(...field.map(entry => (entry.retirement?.end ?? entry.result.time) + entry.startDelay)), charges: BOOST_CHARGES };
 }
 
-export function createIncidentDemo(build, type, name) {
+const DEMO_SECTIONS = [{ from: 0, to: 1 / 3 }, { from: 1 / 3, to: 2 / 3 }, { from: 2 / 3, to: 1 }];
+// The practice run: the car alone for one lap, with the worst problem of every weak section shown in order.
+// Same pace model and timeline as the race, so the lap is exactly reproducible for "Watch run again".
+export function createPracticeLap(entry, track = DEFAULT_TRACK) {
+  const sections = trackSegments(track);
+  const segments = sections.map((segment, index) => ({
+    id: segment.id, name: segment.name, terrain: segment.condition, lap: 1, sector: index + 1,
+    time: round(segment.base + sectorPace(entry.build, segment.sector) * segment.share),
+  }));
+  const plan = buildTimeline(segments, previewIncidents(entry.build, track), sections);
+  const car = { ...entry, grid: 1, startDelay: 0, timeline: plan.timeline, incidents: plan.events, retirement: null, lapTimes: [plan.time],
+    result: { segments, time: plan.time, incidentLoss: round(plan.events.reduce((sum, event) => sum + event.loss, 0)), build: { ...entry.build } } };
+  return { laps: 1, trackId: track.id, field: [car], boosts: [], maxTime: plan.time, charges: 0, practice: true };
+}
+
+export function createIncidentDemo(build, type, name, trackId = 'dune') {
   const incident = INCIDENTS[type];
   if (!incident) throw new Error('Unknown incident demonstration');
   const event = { ...incident, type, lap: 1, distance: incident.phase, loss: type === 'fire' ? 11 : 7 };
   const segments = Array.from({ length: 3 }, () => ({ time: 5 }));
-  const plan = buildTimeline(segments, [event]);
+  const plan = buildTimeline(segments, [event], DEMO_SECTIONS);
   const entry = { id: 'you', name, team: 'Incident lab', color: '#ff3b38', build, grid: 1, startDelay: 0,
     timeline: plan.timeline, incidents: plan.events, result: { time: plan.time, segments, build } };
-  return { laps: 1, field: [entry], boosts: [], maxTime: plan.time, charges: 0, demo: true };
+  return { laps: 1, trackId, field: [entry], boosts: [], maxTime: plan.time, charges: 0, demo: true };
 }
 
 export function effectiveTime(race, id, elapsed) {
@@ -108,7 +128,7 @@ export function sampleRace(race, elapsed) {
     // A short warning before each incident gives spectators time to look.
     const warning = retired || finished ? null : entry.incidents.find(event => event.start > virtualTime && event.start - virtualTime <= WARNING_SECONDS) || null;
     const stats = engineeringStats(entry.build);
-    return { ...entry, distance:retired?entry.retirement.to:finished?race.laps:distance, virtualTime, finished, retired, incident, zone:trackZone(distance),
+    return { ...entry, distance:retired?entry.retirement.to:finished?race.laps:distance, virtualTime, finished, retired, incident, zone:trackZone(trackById(race.trackId),distance),
       completedIncidents, warning, finishTime: finished ? round(elapsedForProgress(race, entry, entry.result.time)) : null,
       lap: Math.min(race.laps, Math.floor(distance) + 1),
       heat: Math.round(Math.min(99, 45 + (100 - stats.cooling) * .5 + distance * 2 + (incident?.type === 'overheat' ? 20 : 0))),

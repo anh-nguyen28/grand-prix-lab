@@ -1,12 +1,16 @@
 import * as THREE from 'three';
 import { box, cylinder, material, batchStaticGeometry } from './geometry.js';
-import { TRACK_POINTS, TRACK_ZONES, TRACK_LANDMARKS } from '../../shared/track.js';
+import { DEFAULT_TRACK } from '../../shared/tracks.js';
+
+// Each section's tarmac is tinted by its condition. The mystery section stays neutral until the answer is revealed.
+export const CONDITION_TINT = { dry: '#3a4350', abrasive: '#6d5a45', damp: '#2f4658', cold: '#4a5d70', bumpy: '#5a4a3a', hot: '#7a4a3a', rain: '#243a52' };
+const HIDDEN_TINT = '#4b5260';
 
 
 function ribbon(curve, width, mat, from = 0, to = 1, height = 0) {
   const vertices = [], indices = [], count = 180;
   for (let i = 0; i <= count; i++) {
-    const point = curve.getPointAt(from + i / count * (to - from)), tangent = curve.getTangentAt(from + i / count * (to - from));
+    const at = (((from + i / count * (to - from)) % 1) + 1) % 1, point = curve.getPointAt(at), tangent = curve.getTangentAt(at); // wraps, so a section at the start line can have a braking zone before it
     for (const side of [-1, 1]) vertices.push(point.x + tangent.z * width * .5 * side, point.y + height, point.z - tangent.x * width * .5 * side);
     if (i < count) { const a = i * 2; indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
   }
@@ -14,14 +18,16 @@ function ribbon(curve, width, mat, from = 0, to = 1, height = 0) {
   const mesh = new THREE.Mesh(geometry, mat); mesh.receiveShadow = true; return mesh;
 }
 
-export function makeCircuit() {
+export function makeCircuit(track = DEFAULT_TRACK) {
   const group = new THREE.Group();
   box(group, [44, .65, 33], [-1, -.1, 0], material('#2d3540'), .2);
   box(group, [43.9, .12, 32.9], [-1, .26, 0], material('#345548'), .15);
-  const curve=new THREE.CatmullRomCurve3(TRACK_POINTS.map(point=>new THREE.Vector3(...point)),true,'catmullrom',.32);
+  const curve=new THREE.CatmullRomCurve3(track.points.map(point=>new THREE.Vector3(...point)),true,'catmullrom',.32);
   group.add(ribbon(curve, 3.4, material('#397e6b'), 0, 1, -.01));
-  const mysteryMaterial = material('#4b5260');
-  for (let i = 0; i < 3; i++) group.add(ribbon(curve, 2.35, i === 1 ? mysteryMaterial : material(i === 0 ? '#353e4a' : '#353e4a'), i / 3, (i + 1) / 3, .01));
+  const mysteryMaterial = material(HIDDEN_TINT), mysteryTint = CONDITION_TINT[track.sections.find(section => section.id === track.mystery.section).condition];
+  for (const section of track.sections) group.add(ribbon(curve, 2.35, section.id === track.mystery.section ? mysteryMaterial : material(CONDITION_TINT[section.condition]), section.from, section.to, .01));
+  // A pale edge along wet sections shows where the water is.
+  for (const section of track.sections.filter(item => ['damp', 'rain'].includes(item.condition))) group.add(ribbon(curve, 2.7, material('#7fb2d6'), section.from, section.to, .005));
   for (let i = 0; i < 240; i++) {
     const point = curve.getPointAt(i / 240), tangent = curve.getTangentAt(i / 240), angle = Math.atan2(tangent.x, tangent.z);
     for (const side of [-1, 1]) {
@@ -53,14 +59,14 @@ export function makeCircuit() {
     box(group, [.65, .17, .25], [x, 4.1, z], material('#dbe8f0'), .03);
   }
   group.add(ribbon(curve,.06,material('#b3c28e'),0,1,.03));
-  for(const zone of TRACK_ZONES.filter(zone=>zone.kind==='corner')) group.add(ribbon(curve,2.35,material('#835b4a'),zone.from-.012,zone.from,.025));
+  for(const zone of track.sections.filter(zone=>zone.kind==='corner')) group.add(ribbon(curve,2.35,material('#835b4a'),zone.from-.012,zone.from,.025));
   for(let i=0;i<14;i++){
     const t=.035+i*.068,point=curve.getPointAt(t),tangent=curve.getTangentAt(t);
     const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([.32,0,0,-.2,0,-.16,-.2,0,.16],3));geometry.computeVertexNormals();
     const arrow=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({color:'#e7ecda',side:THREE.DoubleSide}));arrow.position.copy(point);arrow.position.y+=.04;arrow.rotation.y=-Math.atan2(tangent.z,tangent.x);group.add(arrow);
   }
-  const landmarks=TRACK_LANDMARKS.map(mark=>{const point=curve.getPointAt(mark.at),tangent=curve.getTangentAt(mark.at);return {...mark,position:new THREE.Vector3(point.x+tangent.z*2.3,.6,point.z-tangent.x*2.3)};});
+  const landmarks=track.landmarks.map(mark=>{const point=curve.getPointAt(mark.at),tangent=curve.getTangentAt(mark.at);return {...mark,position:new THREE.Vector3(point.x+tangent.z*2.3,.6,point.z-tangent.x*2.3)};});
   const mapPoints=curve.getSpacedPoints(100).map(point=>[point.x,point.z]);
   batchStaticGeometry(group);
-  return { group, curve, landmarks, mapPoints, setKnowledge(revealed) { mysteryMaterial.color.set(revealed ? '#8f7c65' : '#4b5260'); } };
+  return { group, curve, landmarks, mapPoints, setKnowledge(revealed) { mysteryMaterial.color.set(revealed ? mysteryTint : HIDDEN_TINT); } };
 }

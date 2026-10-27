@@ -1,5 +1,5 @@
 import { PARTS } from '../../shared/content.js';
-import { AERO_LOOKS, PALETTE, POWER_LOOKS, SENSOR_LOOKS, TYRE_LOOKS } from './part-looks.js';
+import { AERO_LOOKS, CHASSIS_LOOKS, PALETTE, POWER_LOOKS, SENSOR_LOOKS, TYRE_LOOKS } from './part-looks.js';
 
 // Original vector illustrations, drawn from the same looks as the 3D car so the shelf matches what you fit.
 const { paint, carbon, metal } = PALETTE;
@@ -44,6 +44,14 @@ function aero(look) {
   return `${shadow(110, 90)}<path d="M84 ${top + 12}V100M136 ${top + 12}V100" stroke="${carbon}" stroke-width="5"/><path d="M80 100H140L132 112H88Z" fill="${paint}"/>${planes}<rect x="${110 - half + 4}" y="${top}" width="${half * 2 - 8}" height="12" rx="3" fill="${paint}" stroke="#ff9aa0"/><rect x="${110 - half - 2}" y="${top - 14 - (look.elements - 1) * 11}" width="7" height="${40 + (look.elements - 1) * 11}" rx="2" fill="${plate}"/><rect x="${110 + half - 5}" y="${top - 14 - (look.elements - 1) * 11}" width="7" height="${40 + (look.elements - 1) * 11}" rx="2" fill="${plate}"/>${floor}<rect x="30" y="${126}" width="160" height="5" rx="2" fill="${carbon}"/>${flaps}`;
 }
 
+// The floor and suspension from above: stiffer parts get thicker arms.
+function chassis(look) {
+  const arm = 5 * look.arms;
+  return `${shadow(110, 70)}<rect x="40" y="50" width="140" height="38" rx="10" fill="${look.tub}" stroke="#ffffff55"/>
+    ${[56, 150].map(x => `<path d="M${x} 50 ${x - 22} 24M${x} 88 ${x - 22} 114" stroke="#c4ccd8" stroke-width="${arm}" stroke-linecap="round"/><rect x="${x - 34}" y="14" width="22" height="14" rx="4" fill="#11151d" stroke="#65738b"/><rect x="${x - 34}" y="110" width="22" height="14" rx="4" fill="#11151d" stroke="#65738b"/>`).join('')}
+    ${look.accent ? `<rect x="52" y="66" width="116" height="5" rx="2" fill="${look.accent}"/>` : ''}`;
+}
+
 // The sensor pod on its mast above a red roll hoop.
 function sensor(id) {
   const look = SENSOR_LOOKS[id];
@@ -56,6 +64,6 @@ function sensor(id) {
 
 export function partArt(id) {
   const part = PARTS[id];
-  const art = part.slot === 'wheels' ? tyre(TYRE_LOOKS[id]) : part.slot === 'power' ? powerUnit(POWER_LOOKS[id]) : part.slot === 'body' ? aero(AERO_LOOKS[id]) : sensor(id);
+  const art = part.slot === 'wheels' ? tyre(TYRE_LOOKS[id]) : part.slot === 'power' ? powerUnit(POWER_LOOKS[id]) : part.slot === 'body' ? aero(AERO_LOOKS[id]) : part.slot === 'chassis' ? chassis(CHASSIS_LOOKS[id]) : sensor(id);
   return `<svg class="part-art" viewBox="0 0 220 145" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">${art}</svg>`;
 }

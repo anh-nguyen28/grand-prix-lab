@@ -6,16 +6,25 @@ import './engineering.css';
 import './garage.css';
 import './broadcast.css';
 import './layout.css';
+
+// Scale the UI up on big screens (never below 1, so small screens are unchanged). Limited by height too, so the garage still fits.
+function fitScale() {
+  const zoom = Math.min(Math.max(Math.min(innerWidth / 1440, innerHeight / 880), 1), 1.8);
+  document.documentElement.style.setProperty('--ui-zoom', zoom.toFixed(3));
+}
+fitScale();
+addEventListener('resize', fitScale);
 import { PARTS, RACE_LAPS, RACE_PLAYBACK_MS } from '../shared/content.js';
 import { updateRaceBroadcast, renderBroadcastTools, resetRaceBroadcast } from './ui/race-ui.js';
 import { renderEngineering, animateSpecs, partDetailsDialog, incidentLabDialog, partAvailability } from './ui/engineering-ui.js';
 import { createAssemblyInteraction } from './ui/assembly.js';
-import { createIncidentDemo, incidentImpact } from '../shared/race.js';
+import { createIncidentDemo, createPracticeLap, incidentImpact } from '../shared/race.js';
 import { INCIDENTS, incidentFixes } from '../shared/engineering.js';
 import { createLocalSession } from './adapters/local-session.js';
 import { createWorkshop } from './scene/workshop.js';
 import { renderShell, renderParts, renderIntel, renderActions, renderSteps } from './ui/render.js';
-import { briefingDialog, helpDialog, predictionWarningDialog, profileDialog, roundConceptDialog, seasonDialog } from './ui/dialogs.js';
+import { briefingDialog, helpDialog, predictionWarningDialog, profileDialog, tracksDialog } from './ui/dialogs.js';
+import { TRACKS, trackById } from '../shared/tracks.js';
 import { icon } from './ui/icons.js';
 import { sendPlayerMessage } from './ui/race-chat.js';
 import { storyChapters } from '../shared/story.js';
@@ -23,7 +32,11 @@ import { storyChapters } from '../shared/story.js';
 const app = document.querySelector('#app');
 app.innerHTML = renderShell();
 const session = createLocalSession();
-const ui = { category: 'wheels', viewChapter: null, currentChapter: null, suggested: new Set(), guess: null, view: 'rover', busy: false, scanning: false, runLabel: '', raceTelemetry: null, armedPart: null, demo: null, paused: false, playbackSpeed: 1 };
+// Playback speeds, in the order the button cycles through them.
+const SPEEDS = [1, 1.5, 2, 0.5];
+// A practice run is one lap, played a little slower than real time so each problem is easy to read.
+const PRACTICE_SLOWDOWN = 1.3;
+const ui = { category: 'wheels', viewChapter: null, currentChapter: null, suggested: new Set(), guess: null, view: 'rover', busy: false, scanning: false, runLabel: '', raceTelemetry: null, armedPart: null, demo: null, paused: false, playbackSpeed: 1, sim: null };
 const scene = createWorkshop(document.querySelector('#scene'));
 const dialog = document.querySelector('#dialog');
 let toastTimer, finishRun = null, runToken = 0, scanToken = 0, liveRace = null;
@@ -39,7 +52,7 @@ function closeDialog() { dialog.close(); }
 function setView(view) {
   ui.view = view; scene.setView(view);
   document.querySelectorAll('[data-action="view"]').forEach(button => { const selected = button.dataset.view === view; button.classList.toggle('selected', selected); button.setAttribute('aria-pressed', selected); button.disabled = ui.busy; });
-  document.querySelector('#scene-hint').innerHTML = `${icon('eye')} ${view === 'rover' ? 'DRAG TO LOOK AROUND' : 'DUNE VALLEY CIRCUIT / BROADCAST VIEW'}`;
+  document.querySelector('#scene-hint').innerHTML = `${icon('eye')} ${view === 'rover' ? 'DRAG TO LOOK AROUND' : `${trackById(session.getSnapshot().trackId).title.toUpperCase()} CIRCUIT / BROADCAST VIEW`}`;
 }
 function render() {
   const state = session.getSnapshot();
@@ -48,7 +61,7 @@ function render() {
   const focusKey = focused?.dataset?.action ? { action: focused.dataset.action, id: focused.dataset.id, category: focused.dataset.category, tab: focused.dataset.tab, terrain: focused.dataset.terrain } : null;
   if(state.phase!=='race'||!document.querySelector('#live-standings'))document.querySelector('#parts-panel').innerHTML = renderParts(state, ui);
   // Rebuild the stats only when the car changes, so the bars get to finish their animation.
-  const statsKey = JSON.stringify(state.build);
+  const statsKey = JSON.stringify([state.build, state.trackId]);
   if (statsKey !== ui.statsKey) { ui.statsKey = statsKey; const panel = document.querySelector('#engineering-panel'); panel.innerHTML = renderEngineering(state); animateSpecs(panel); }
   // When the story moves to a new chapter, show it; the player can still click back to earlier ones.
   const current = storyChapters(state).find(chapter => chapter.status === 'current')?.id ?? null;
@@ -58,7 +71,12 @@ function render() {
   document.querySelector('#action-bar').innerHTML = renderActions(state, ui);
   document.querySelector('#steps').innerHTML = renderSteps(state);
   document.querySelector('#profile-label').textContent = state.profile.name;
-  const copy = ui.demo ? ['THE INCIDENT LAB', INCIDENTS[ui.demo].title, 'A controlled demonstration. Your setup, tests and score are unchanged.'] : state.phase === 'results'
+  const track = trackById(state.trackId);
+  scene.setTrack(state.trackId);
+  document.querySelector('#round-title').textContent = track.title;
+  document.querySelector('#round-number').textContent = `GRAND PRIX ${track.number} / 0${TRACKS.length}`;
+  document.querySelector('#round-icon').innerHTML = icon(track.icon);
+  const copy = ui.demo ? ['THE INCIDENT LAB', INCIDENTS[ui.demo].title, 'A controlled demonstration. Your setup, tests and score are unchanged.'] : ui.sim ? ['THE TEST RUN', ui.sim.label, 'One lap with every problem your car will meet. Watch where it loses time. No rivals, no points.'] : state.phase === 'results'
     ? ['THE REVEAL', 'Every run teaches you something.', 'The finish line is only half the story. Here’s what your car discovered.']
     : state.phase === 'adjust'
       ? ['THE FINAL TUNE-UP', 'A little feedback. A better build.', 'Your qualifying run is in. Change up to two slots, then make it count.']
@@ -66,11 +84,11 @@ function render() {
         ? ['THE GRAND PRIX', 'Let your build do the talking.', 'Eight laps. A full grid. Watch your engineering come alive.']
         : ['THE PADDOCK', 'Your race starts in the garage.', 'Read the circuit. Dial in your setup. Earn your place on the grid.'];
   ['eyebrow', 'heading', 'subheading'].forEach((id, i) => { document.getElementById(id).textContent = copy[i]; });
-  document.querySelector('#rover-title').innerHTML = `CAR 07 <span>/ ${state.phase === 'practice' ? 'PERFORMANCE LAB' : state.phase === 'adjust' ? 'THE FINAL TUNE-UP' : 'DUNE VALLEY'}</span>`;
+  document.querySelector('#rover-title').innerHTML = `CAR 07 <span>/ ${state.phase === 'practice' ? 'PERFORMANCE LAB' : state.phase === 'adjust' ? 'THE FINAL TUNE-UP' : track.title.toUpperCase()}</span>`;
   document.querySelector('.workspace').classList.toggle('show-results', state.phase === 'results');
-  document.querySelector('.workspace').classList.toggle('race-mode', state.phase === 'race' || !!ui.demo);
-  document.body.classList.toggle('race-active', state.phase === 'race' || !!ui.demo);
-  document.querySelector('.workspace').classList.toggle('demo-mode', !!ui.demo);
+  document.querySelector('.workspace').classList.toggle('race-mode', state.phase === 'race' || !!ui.demo || !!ui.sim);
+  document.body.classList.toggle('race-active', state.phase === 'race' || !!ui.demo || !!ui.sim);
+  document.querySelector('.workspace').classList.toggle('demo-mode', !!ui.demo || !!ui.sim);
   scene.setAssembly(state, ui.armedPart);
   scene.setBuild(state.build);
   scene.setKnowledge?.(state.runs.length > 0 || state.phase !== 'practice');
@@ -116,7 +134,8 @@ function beginAnimation(entries,label,next,duration=6500,demoRace=null){
   const overlay=document.querySelector('#run-overlay'),tools=document.querySelector('#broadcast-tools'),caption=document.querySelector('#demo-caption');overlay.hidden=false;
   overlay.classList.toggle('race-overlay',racing);tools.hidden=!racing;tools.innerHTML=racing?renderBroadcastTools(!!demoRace):'';
   caption.hidden=!demoRace;
-  if(demoRace)caption.innerHTML=`<span>CONTROLLED SCENARIO · NO SCORE</span><strong>${INCIDENTS[ui.demo].title}</strong><p>${INCIDENTS[ui.demo].cause}</p><small id="demo-stage">Approaching the test zone…</small>`;
+  if(demoRace&&ui.sim)caption.innerHTML=simCaption(null);
+  else if(demoRace)caption.innerHTML=`<span>CONTROLLED SCENARIO · NO SCORE</span><strong>${INCIDENTS[ui.demo].title}</strong><p>${INCIDENTS[ui.demo].cause}</p><small id="demo-stage">Approaching the test zone…</small>`;
   overlay.innerHTML=racing?`<div class="start-sequence"><span>YOUR DRIVER · ${session.getSnapshot().profile.name.replaceAll('&','&amp;').replaceAll('<','&lt;')}</span><div class="start-lights">${'<i></i>'.repeat(5)}</div><strong>HOLD YOUR BREATH.</strong></div><div class="broadcast-hud"><span class="live-tag"><span class="live-dot"></span><span id="race-chapter">STARTING GRID</span></span><div><small>RACE LAP</small><strong id="race-lap">01 / ${String(RACE_LAPS).padStart(2,'0')}</strong></div><div><small>YOUR POSITION</small><strong id="your-position">—</strong></div><div><small>RACE TIME</small><strong id="race-clock">0:00.0</strong></div></div><div class="run-progress"><i></i></div>`:`<div><span class="live-dot"></span><strong>${label}</strong><span id="run-progress-label">0%</span></div><div class="run-progress"><i></i></div>`;
   if(demoRace)overlay.querySelector('.start-sequence').hidden=true;
   finishRun=()=>{
@@ -129,20 +148,50 @@ function beginAnimation(entries,label,next,duration=6500,demoRace=null){
     const progressLabel=overlay.querySelector('#run-progress-label');if(progressLabel)progressLabel.textContent=`${Math.round(progress*100)}%`;
     if(broadcast){
       ui.raceTelemetry=broadcast;
-      if(demoRace){
+      if(demoRace&&ui.sim){
+        const row=broadcast.rows[0],html=simCaption(row);
+        if(caption.dataset.key!==html){caption.dataset.key=html;caption.innerHTML=html;}
+        const pause=document.querySelector('[data-action="pause-race"]');if(pause){pause.textContent=ui.paused?'▶':'Ⅱ';pause.setAttribute('aria-label',ui.paused?'Resume race':'Pause race');}
+      }else if(demoRace){
         const row=broadcast.rows[0],stage=document.querySelector('#demo-stage');
         if(stage)stage.textContent=row.incident?(row.incident.type==='fire'&&row.incident.progress<.25?'SMOKE · heat building at the brake':`${row.incident.label} · watch the car`):row.completedIncidents.length?'Demonstration complete. Returning to the garage…':'Approaching the test zone…';
         const pause=document.querySelector('[data-action="pause-race"]');if(pause){pause.textContent=ui.paused?'▶':'Ⅱ';pause.setAttribute('aria-label',ui.paused?'Resume race':'Pause race');}
       }else updateRaceBroadcast(liveRace,broadcast);
     }
-  },racing?{getRace:()=>demoRace||liveRace,demo:!!demoRace}:{});
+  },racing?{getRace:()=>demoRace||liveRace,demo:!!demoRace,practice:!!ui.sim}:{});
   if(racing&&(matchMedia('(max-width: 640px)').matches||innerHeight<1000))document.querySelector('.scene-card').scrollIntoView({behavior:'instant',block:'start'});
+}
+// The caption narrates the lap: the problem happening now (or coming up), when it first happens in the race, and the time lost so far.
+const escapeText = text => String(text).replaceAll('&', '&amp;').replaceAll('<', '&lt;');
+function simCaption(row) {
+  const sim = ui.sim, car = sim.race.field[0], total = car.incidents.length;
+  if (!row) return `<span>${sim.label} · ONE LAP</span><strong>Lights out</strong><p>One lap, with the worst problem of every weak section shown as the car reaches it.</p><small>${total} problem${total === 1 ? '' : 's'} on this lap</small>`;
+  const lost = row.completedIncidents.reduce((sum, event) => sum + event.loss, 0) + (row.incident ? row.incident.loss : 0);
+  const now = row.incident, next = row.warning, event = now || next;
+  const title = row.finished ? 'Chequered flag' : now ? now.title : next ? `Coming up: ${next.title}` : 'Clean running';
+  const when = event && event.raceLap ? (event.type === 'fire' ? ` In the race this ends the run on lap ${event.raceLap}.` : ` In the race this first happens on lap ${event.raceLap}.`) : '';
+  const body = row.finished ? `Lap time with every problem: ${car.result.time.toFixed(1)}s. Use Watch run again to see it once more.`
+    : now ? `${now.cause}${when}` : next ? next.warning : 'Nothing wrong in this section. Keep watching.';
+  const cost = now ? `Cost +${now.loss.toFixed(1)}s` : `${row.completedIncidents.length} of ${total} problem${total === 1 ? '' : 's'} so far · +${lost.toFixed(1)}s lost`;
+  return `<span>${sim.label} · ONE LAP</span><strong>${escapeText(title)}</strong><p>${escapeText(body)}</p><small>${cost}</small>`;
+}
+// Plays the car alone for one lap on the selected track. The lap is deterministic, so the same run can be watched again.
+function playSimulation(run, label, next) {
+  const state = session.getSnapshot();
+  const race = createPracticeLap({ id: 'you', name: state.profile.name, build: run.build, color: '#ff3b38' }, trackById(run.trackId));
+  ui.sim = { label, race };
+  beginAnimation(race.field, label, () => { ui.sim = null; ui.raceTelemetry = null; next(); }, Math.round(race.maxTime * 1000 * PRACTICE_SLOWDOWN), race);
+}
+function watchRunAgain(index) {
+  const run = session.getSnapshot().runs[index];
+  if (ui.busy || ui.scanning || !run) return;
+  playSimulation(run, `PRACTICE RUN 0${index + 1}`, () => { ui.viewChapter = null; setView('rover'); });
 }
 function startIncidentDemo(type){
   if(ui.busy||ui.scanning||!INCIDENTS[type])return;
   closeDialog();const state=session.getSnapshot();
   ui.demo=type;
-  const demo=createIncidentDemo(state.build,type,'Test car');
+  const demo=createIncidentDemo(state.build,type,'Test car',state.trackId);
   beginAnimation(demo.field,`${INCIDENTS[type].title} · engineering lab`,()=>{ui.demo=null;ui.raceTelemetry=null;setView('rover');},18000,demo);
 }
 
@@ -153,11 +202,19 @@ function startRun(type, allowNoPrediction = false) {
   const result = dispatch({ type: type === 'test' ? 'PRACTICE' : 'QUALIFY' });
   if (!result.ok) return;
   const updated = session.getSnapshot(), run = type === 'test' ? updated.runs.at(-1) : updated.qualifying;
-  beginAnimation([{ id: 'you', name: updated.profile.name, build: updated.build, result: run, color: '#ff3b38' }], type === 'test' ? `Practice run 0${updated.runs.length}` : 'Qualifying lap', () => {
-    ui.viewChapter = null; // show the new report in the current chapter
-    if (type === 'qualify') dispatch({ type: 'FINISH_QUALIFY' });
+  if (type === 'test') {
+    playSimulation(run, `PRACTICE RUN 0${updated.runs.length}`, () => {
+      ui.viewChapter = null; // show the new report in the current chapter
+      setView('rover');
+      showToast('Run complete. Your report shows what to try next.');
+    });
+    return;
+  }
+  beginAnimation([{ id: 'you', name: updated.profile.name, build: updated.build, result: run, color: '#ff3b38' }], 'Qualifying lap', () => {
+    ui.viewChapter = null;
+    dispatch({ type: 'FINISH_QUALIFY' });
     setView('rover');
-    showToast(type === 'test' ? 'Run complete. Your report shows what to try next.' : 'Benchmark set. You can now adjust two part slots.');
+    showToast('Benchmark set. You can now adjust two part slots.');
   });
 }
 // Replays an incident from the finished race. The race is deterministic, so the clip is exact.
@@ -174,7 +231,7 @@ function startReplay(id, distance) {
 }
 function reset(build = null) {
   if (ui.busy) return;
-  scanToken++; ui.scanning = false; ui.guess = null; ui.category = 'wheels'; ui.viewChapter = null; ui.suggested.clear(); ui.raceTelemetry = null; ui.armedPart = null; ui.demo = null;
+  scanToken++; ui.scanning = false; ui.guess = null; ui.category = 'wheels'; ui.viewChapter = null; ui.suggested.clear(); ui.raceTelemetry = null; ui.armedPart = null; ui.demo = null; ui.sim = null;
   session.reset(build); setView('rover'); closeDialog(); showToast('Fresh car, fresh possibilities. Your two practice runs are ready.');
 }
 
@@ -184,11 +241,11 @@ document.addEventListener('click', async event => {
   if (action === 'home') event.preventDefault();
   if (ui.busy && !['skip-run', 'boost', 'help', 'camera', 'close-dialog', 'race-camera', 'follow-incident', 'pause-race', 'race-speed', 'part-details', 'incident-lab', 'incident-info', 'chat-react', 'view-chapter'].includes(action)) { showToast('Let this run finish, or skip its animation.'); return; }
   switch (action) {
-    case 'home': case 'briefing': openDialog(briefingDialog()); break;
+    case 'home': case 'briefing': openDialog(briefingDialog(session.getSnapshot())); break;
     case 'workshop': closeDialog(); document.querySelector('.workspace').scrollIntoView({ behavior: 'smooth', block: 'center' }); break;
     case 'help': openDialog(helpDialog()); break;
-    case 'season': openDialog(seasonDialog()); break;
-    case 'season-round': if (button.dataset.round === '01') { closeDialog(); if (session.getSnapshot().phase === 'results') reset(); } else openDialog(roundConceptDialog(button.dataset.round)); break;
+    case 'tracks': openDialog(tracksDialog(session.getSnapshot())); break;
+    case 'select-track': if (dispatch({ type: 'SELECT_TRACK', id: button.dataset.track }).ok) { ui.guess = null; ui.viewChapter = null; ui.suggested.clear(); closeDialog(); showToast(`${trackById(button.dataset.track).title} selected.`); } break;
     case 'profile': openDialog(profileDialog(session.getSnapshot())); break;
     case 'close-dialog': closeDialog(); break;
     case 'category': ui.category = button.dataset.category; render(); break;
@@ -220,21 +277,22 @@ document.addEventListener('click', async event => {
       if (ui.scanning || !dispatch({ type: 'RACE' }).ok) break;
       const state = session.getSnapshot();
       resetRaceBroadcast();
-      beginAnimation(state.race.field, 'Dune Valley · Eight-lap Grand Prix', () => { dispatch({ type: 'REVEAL' }); showToast('Chequered flag! Final classification and your AI discovery are ready.'); }, RACE_PLAYBACK_MS);
+      beginAnimation(state.race.field, `${trackById(state.trackId).title} · Eight-lap Grand Prix`, () => { dispatch({ type: 'REVEAL' }); showToast('Chequered flag! Final classification and your AI discovery are ready.'); }, RACE_PLAYBACK_MS);
       break;
     }
     case 'race-camera': scene.setRaceCamera(button.dataset.camera);document.querySelectorAll('[data-action="race-camera"]').forEach(item=>{item.classList.toggle('selected',item===button);item.setAttribute('aria-pressed',String(item===button));}); break;
     case 'follow-incident': scene.setRaceCamera(`driver:${button.dataset.driverId}`);document.querySelectorAll('[data-action="race-camera"]').forEach(item=>{item.classList.remove('selected');item.setAttribute('aria-pressed','false');});break;
     case 'pause-race': ui.paused=!ui.paused;scene.setPlayback({paused:ui.paused}); break;
-    case 'race-speed': ui.playbackSpeed=ui.playbackSpeed===1?2:1;scene.setPlayback({speed:ui.playbackSpeed});button.textContent=`${ui.playbackSpeed}×`; break;
+    case 'race-speed': ui.playbackSpeed=SPEEDS[(SPEEDS.indexOf(ui.playbackSpeed)+1)%SPEEDS.length];scene.setPlayback({speed:ui.playbackSpeed});button.textContent=`${ui.playbackSpeed}×`; break;
     case 'boost': if (ui.raceTelemetry?.started && !ui.paused) dispatch({ type: 'BOOST', elapsed: ui.raceTelemetry.elapsed }); break;
     case 'skip-run': scene.finishAnimation(); break;
     case 'chat-react': { const error = sendPlayerMessage(button.dataset.text, { color: '#ff3b38' }); if (error) showToast(error); break; }
     case 'reset': reset(); break;
     case 'rebuild': reset(session.getSnapshot().build); showToast('Same car, fresh round. Apply what the race taught you.'); break;
     case 'replay': startReplay(button.dataset.driverId, button.dataset.distance); break;
+    case 'watch-run': watchRunAgain(Number(button.dataset.run)); break;
     case 'fix-risk': {
-      const fixes = incidentFixes(session.getSnapshot().build, button.dataset.type);
+      const fixes = incidentFixes(session.getSnapshot().build, button.dataset.type, trackById(session.getSnapshot().trackId));
       if (!fixes.length) { showToast('No single affordable swap removes this risk. Try changing two parts.'); break; }
       ui.category = fixes[0].slot; ui.suggested = new Set(fixes.map(fix => fix.id)); render();
       document.querySelector('.parts-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });

@@ -112,7 +112,7 @@
 
 /* Live chat: the right-hand column during a race. */
 .workspace.race-mode:not(.demo-mode) .intel-panel{display:block;padding:0;overflow:hidden}
-.race-chat{display:flex;flex-direction:column;height:clamp(500px,calc(100dvh - 390px),740px);padding:14px}
+.race-chat{display:flex;flex-direction:column;height:clamp(500px,calc(100dvh / var(--ui-zoom,1) - 390px),740px);padding:14px}
 .chat-header{display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .chat-header strong{font:700 13px var(--display)}
 .chat-header small{margin-left:auto;font-size:9px;color:#8191a8}
@@ -146,3 +146,10 @@
   .incident-banner strong{font-size:12px}
 }
 @media(prefers-reduced-motion:reduce){.race-callout,.ers-button.attack:not(:disabled),.map-pin.active{animation:none}}
+.incident-pop{position:absolute;left:0;top:0;z-index:5;padding:5px 9px;white-space:nowrap;pointer-events:none;color:#fff3e0;background:#2b1b12ee;border:1px solid #ffb360;border-radius:4px;font:700 11px var(--display);box-shadow:0 4px 14px #0008;animation:incident-pop-in .25s ease-out}
+.incident-pop b{color:#ffd23f;margin-left:4px}
+.incident-pop.severe{background:#3b1215ee;border-color:#ff4a4a}
+.incident-pop.severe b{color:#ff8a80}
+.incident-pop[hidden]{display:none}
+@keyframes incident-pop-in{from{opacity:0;margin-top:6px}to{opacity:1;margin-top:0}}
+@media(prefers-reduced-motion:reduce){.incident-pop{animation:none}}

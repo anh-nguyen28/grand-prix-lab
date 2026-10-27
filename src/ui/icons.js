@@ -27,5 +27,5 @@ const paths = {
   help: '<circle cx="12" cy="12" r="9"/><path d="M9 8a3 3 0 0 1 6 1c0 2-3 2-3 4m0 3v1"/>',
 };
 export function icon(name, cls = '') { return `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.box}</svg>`; }
-export const slotIcon = { wheels: 'wheel', power: 'bolt', body: 'box', sensor: 'scan' };
+export const slotIcon = { wheels: 'wheel', power: 'bolt', body: 'box', chassis: 'route', sensor: 'scan' };
 export function escapeHtml(text) { return String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }

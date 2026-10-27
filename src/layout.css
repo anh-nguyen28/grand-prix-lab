@@ -1,7 +1,9 @@
 /* Workspace layout for every mode. Loaded last, so it is the single source of truth for the grid.
    Garage: parts shelf | car | car stats in one row of equal height, Field notes full width below.
    Race: timing tower | track | live chat. Incident lab: shelf | track. */
-:root{--bay:560px}
+:root{--bay:560px;--ui-zoom:1}
+/* Large screens: main.js sets --ui-zoom (1 below ~1500px wide) and the whole app scales with it, so text and panels grow instead of leaving empty margins. */
+#app{zoom:var(--ui-zoom)}
 .workspace{display:grid;grid-template-columns:280px minmax(0,1fr) 280px;grid-template-rows:var(--bay) auto;grid-template-areas:"parts scene stats" "notes notes notes";gap:20px;align-items:stretch}
 .parts-panel{grid-area:parts;height:var(--bay);min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#3a4a62 transparent}
 /* The three boxes in the top row share one frame style. */
