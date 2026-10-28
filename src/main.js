@@ -65,7 +65,7 @@ function render() {
   const focusKey = focused?.dataset?.action ? { action: focused.dataset.action, id: focused.dataset.id, category: focused.dataset.category, tab: focused.dataset.tab, terrain: focused.dataset.terrain } : null;
   if(state.phase!=='race'||!document.querySelector('#live-standings'))document.querySelector('#parts-panel').innerHTML = renderParts(state, ui);
   // Rebuild the stats only when the car changes, so the bars get to finish their animation.
-  const statsKey = JSON.stringify([state.build, state.trackId]);
+  const statsKey = JSON.stringify([state.build, state.trackId, state.runs.length, state.qualifying?.time]);
   if (statsKey !== ui.statsKey) { ui.statsKey = statsKey; const panel = document.querySelector('#engineering-panel'); panel.innerHTML = renderEngineering(state); animateSpecs(panel); }
   // When the story moves to a new chapter, show it; the player can still click back to earlier ones.
   const current = storyChapters(state).find(chapter => chapter.status === 'current')?.id ?? null;
@@ -93,7 +93,7 @@ function render() {
   document.querySelector('.workspace').classList.toggle('race-mode', state.phase === 'race' || !!ui.demo || !!ui.sim);
   document.body.classList.toggle('race-active', state.phase === 'race' || !!ui.demo || !!ui.sim);
   document.querySelector('.workspace').classList.toggle('demo-mode', !!ui.demo || !!ui.sim);
-  scene.setAssembly(state, ui.armedPart);
+  scene.setAssembly(state, ui.armedPart, ui.category);
   scene.setBuild(state.build, { ...state.profile.livery, team: state.profile.team });
   // A team logo file may load after the first paint; redraw once it arrives.
   if (state.profile.team.id !== ui.logoTeam) { ui.logoTeam = state.profile.team.id; loadTeamLogo(ui.logoTeam).then(image => { if (image && ui.logoTeam === state.profile.team.id) { ui.statsKey = null; render(); } }); }

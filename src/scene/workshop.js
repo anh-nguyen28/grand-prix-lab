@@ -85,8 +85,8 @@ export function createWorkshop(container) {
   // Only a real change of view resets the camera; fitting parts keeps the player's chosen angle.
   function setView(next){const changed=next!==view;view=next;garage.visible=next==='rover';circuit.group.visible=next==='course';labelLayer.hidden=next!=='course';fittings.hidden=next!=='rover';landmarkLayer.hidden=next!=='course';map.hidden=next!=='course';if(changed){resetCamera();applyViewLook();}}
   function setBuild(build,nextLivery=null){const key=JSON.stringify([build,nextLivery]);if(key===lastBuild)return;lastBuild=key;livery=nextLivery;if(car)disposeGroup(car);car=makeRaceCar(build,livery||undefined);car.position.y=.14;garage.add(car);renderer.shadowMap.needsUpdate=true;}
-  function setAssembly(state,part){
-    for(const item of fittingButtons){item.button.querySelector('strong').textContent=PARTS[state.build[item.slot]].name;item.button.disabled=!['practice','adjust'].includes(state.phase)||(item.slot==='sensor'&&state.sensorLocked);}
+  function setAssembly(state,part,category=null){
+    for(const item of fittingButtons){item.button.querySelector('strong').textContent=PARTS[state.build[item.slot]].name;item.button.disabled=!['practice','adjust'].includes(state.phase)||(item.slot==='sensor'&&state.sensorLocked);item.button.classList.toggle('active',item.slot===category);item.button.setAttribute('aria-current',item.slot===category?'true':'false');}
     setArmedPart(part);
   }
   function setArmedPart(part){
