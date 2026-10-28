@@ -13,7 +13,7 @@ export function createWorkshop(container) {
   let renderer;
   try { renderer = new THREE.WebGLRenderer({ antialias: true }); }
   catch { container.innerHTML = '<div class="scene-fallback"><strong>Your car is ready.</strong><p>3D is unavailable in this browser. You can still set up and test your car.</p></div>'; return { setBuild() {}, setView() {}, resetCamera() {}, setAssembly() {}, setArmedPart() {}, setRaceCamera() {}, setPlayback() {}, animateRun: (_entries, _duration, done) => setTimeout(done, 800), finishAnimation() {}, dispose() {} }; }
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); renderer.shadowMap.enabled = true; renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75)); renderer.shadowMap.enabled = true; renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
   container.append(renderer.domElement); renderer.domElement.setAttribute('aria-label', 'Interactive open-wheel race car. Drag to rotate.');
   const scene = new THREE.Scene(); scene.background = new THREE.Color('#161d28'); scene.fog = new THREE.Fog('#161d28', 120, 240);
@@ -70,12 +70,20 @@ export function createWorkshop(container) {
   const vector=new THREE.Vector3(),followTarget=new THREE.Vector3();
   function resetCamera(){
     raceCamera='overview';
-    if(view==='rover'){camera.position.set(9.7,6.8,10.7);controls.target.set(0,.45,0);}
+    if(view==='rover'){camera.position.set(7.8,5.5,8.6);controls.target.set(0,.45,0);}
     else{const ratio=container.clientWidth/container.clientHeight,scale=Math.max(1,.88/ratio);camera.position.set(33*scale,40*scale,45*scale);controls.target.set(-1,.3,0);}
     controls.enabled=true;controls.update();renderer.shadowMap.needsUpdate=true;
   }
+  // The garage frames one car, so it gets a tight, sharp shadow and no grid; the course keeps the wide setup.
+  function applyViewLook(){
+    const garageView=view==='rover',size=garageView?7:28,map=garageView?2048:1024;
+    camera.fov=garageView?32:36;camera.updateProjectionMatrix();grid.visible=!garageView;
+    Object.assign(sun.shadow.camera,{left:-size,right:size,top:size,bottom:-size});sun.shadow.camera.updateProjectionMatrix();
+    if(sun.shadow.mapSize.x!==map){sun.shadow.mapSize.set(map,map);sun.shadow.map?.dispose();sun.shadow.map=null;}
+    renderer.shadowMap.needsUpdate=true;
+  }
   // Only a real change of view resets the camera; fitting parts keeps the player's chosen angle.
-  function setView(next){const changed=next!==view;view=next;garage.visible=next==='rover';circuit.group.visible=next==='course';labelLayer.hidden=next!=='course';fittings.hidden=next!=='rover';landmarkLayer.hidden=next!=='course';map.hidden=next!=='course';if(changed)resetCamera();}
+  function setView(next){const changed=next!==view;view=next;garage.visible=next==='rover';circuit.group.visible=next==='course';labelLayer.hidden=next!=='course';fittings.hidden=next!=='rover';landmarkLayer.hidden=next!=='course';map.hidden=next!=='course';if(changed){resetCamera();applyViewLook();}}
   function setBuild(build,nextLivery=null){const key=JSON.stringify([build,nextLivery]);if(key===lastBuild)return;lastBuild=key;livery=nextLivery;if(car)disposeGroup(car);car=makeRaceCar(build,livery||undefined);car.position.y=.14;garage.add(car);renderer.shadowMap.needsUpdate=true;}
   function setAssembly(state,part){
     for(const item of fittingButtons){item.button.querySelector('strong').textContent=PARTS[state.build[item.slot]].name;item.button.disabled=!['practice','adjust'].includes(state.phase)||(item.slot==='sensor'&&state.sensorLocked);}
@@ -266,9 +274,9 @@ export function createWorkshop(container) {
     controls.enabled=true;current.done();
   }
   const observer=new ResizeObserver(()=>{const width=container.clientWidth,height=container.clientHeight;if(!width||!height)return;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();});observer.observe(container);
-  resetCamera();
+  resetCamera();applyViewLook();
   function tick(now){
-    if(disposed)return;frame=requestAnimationFrame(tick);if(now-lastFrame<33)return;lastFrame=now;
+    if(disposed)return;frame=requestAnimationFrame(tick);if(active&&now-lastFrame<33)return;lastFrame=now;
     if(active){
       const current=active,delta=now-current.lastTick;current.lastTick=now;
       if(!current.paused)current.playhead+=delta*current.speed;

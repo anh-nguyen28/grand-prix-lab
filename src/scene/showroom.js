@@ -15,6 +15,10 @@ export function createShowroom(container) {
   const camera = new THREE.PerspectiveCamera(32, 1, .1, 100);
   const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.enablePan = false; controls.minDistance = 6; controls.maxDistance = 16; controls.maxPolarAngle = Math.PI * .47; controls.minPolarAngle = .35;
   controls.autoRotate = !matchMedia('(prefers-reduced-motion: reduce)').matches; controls.autoRotateSpeed = 1.4;
+  // Pause the turntable while the user inspects the car, then resume after a short delay.
+  const spinAllowed = controls.autoRotate; let resumeTimer = 0;
+  controls.addEventListener('start', () => { clearTimeout(resumeTimer); controls.autoRotate = false; });
+  controls.addEventListener('end', () => { clearTimeout(resumeTimer); resumeTimer = setTimeout(() => { controls.autoRotate = spinAllowed; }, 2500); });
   scene.add(new THREE.HemisphereLight('#dfe9ff', '#1a1c24', 1.2));
   const key = new THREE.SpotLight('#fff6ea', 70, 30, .55, .6); key.position.set(4, 9, 5); key.castShadow = true; key.shadow.mapSize.set(1024, 1024); key.shadow.normalBias = .02; scene.add(key);
   const fill = new THREE.SpotLight('#9fbaff', 35, 30, .6, .8); fill.position.set(-6, 6, -4); scene.add(fill);
@@ -42,6 +46,6 @@ export function createShowroom(container) {
     setCar,
     start() { if (running) return; running = true; resize(); frame = requestAnimationFrame(tick); },
     stop() { running = false; cancelAnimationFrame(frame); },
-    dispose() { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); controls.dispose(); disposeGroup(scene); renderer.dispose(); },
+    dispose() { disposed = true; clearTimeout(resumeTimer); cancelAnimationFrame(frame); observer.disconnect(); controls.dispose(); disposeGroup(scene); renderer.dispose(); },
   };
 }

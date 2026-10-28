@@ -28,7 +28,7 @@ export function makeRaceCar(build,livery=PALETTE.paint,number='07'){
     // Sidepod inlets: big openings cool well; tiny ones run hot.
     box(car,[.3,power.inlet,.45],[.26,.69,Math.sign(z)*.64],carbon,.03);
     if(!split)box(car,[1.45,.07,.03],[-.5,.72,Math.sign(z)*.91],white,.01);
-    for(const x of [-1.65,1.5])for(const dx of [-.22,.22]){const arm=box(car,[.07*chassis.arms,.07*chassis.arms,1.1],[x+dx,.47,Math.sign(z)*.8],carbon,.015);arm.rotation.y=dx>0?.38:-.38;}
+    for(const x of [-1.65,1.5])for(const dx of [-.22,.22]){const arm=box(car,[.07*chassis.arms,.07*chassis.arms,1.1],[x+dx,.47,Math.sign(z)*.8],carbon,.015);arm.rotation.y=Math.sign(z)*(dx>0?.38:-.38);}
     if(power.extra==='batteries')for(const x of [-.35,-1.05])box(car,[.6,.2,.4],[x,.97,Math.sign(z)*.64],glow(PALETTE.battery,.9),.04);
     if(chassis.accent)box(car,[3.6,.03,.05],[-.3,.43,Math.sign(z)*1.0],material(chassis.accent),0);
     if(aero.floor){box(car,[3.3,.12,.06],[-.35,.32,Math.sign(z)*1.02],carbon,.02);box(car,[3.3,.03,.06],[-.35,.39,Math.sign(z)*1.02],material(PALETTE.cyan),0);}
