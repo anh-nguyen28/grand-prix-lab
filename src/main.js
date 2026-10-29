@@ -27,12 +27,11 @@ import { createShowroom } from './scene/showroom.js';
 import { renderShowroomShell, renderShowroomPanel } from './ui/showroom.js';
 import { loadTeamLogo, teamLogo } from './ui/team-logo.js';
 import { renderShell, renderParts, renderIntel, renderActions, renderSteps } from './ui/render.js';
-import { briefingDialog, helpDialog, predictionWarningDialog, profileDialog, tracksDialog } from './ui/dialogs.js';
+import { briefingDialog, helpDialog, profileDialog, tracksDialog } from './ui/dialogs.js';
 import { TRACKS, trackById } from '../shared/tracks.js';
 import { icon } from './ui/icons.js';
 import { sendPlayerMessage } from './ui/race-chat.js';
 import { costText, loadingText, renderIncidentPage } from './ui/incident-page.js';
-import { storyChapters } from '../shared/story.js';
 
 const app = document.querySelector('#app');
 app.innerHTML = renderShell() + renderShowroomShell();
@@ -41,10 +40,10 @@ const session = createLocalSession();
 const SPEEDS = [1, 1.5, 2, 0.5];
 // A practice run is one lap, played a little slower than real time so each problem is easy to read.
 const PRACTICE_SLOWDOWN = 1.3;
-const ui = { category: 'wheels', viewChapter: null, currentChapter: null, suggested: new Set(), guess: null, view: 'rover', busy: false, scanning: false, runLabel: '', raceTelemetry: null, armedPart: null, demo: null, paused: false, playbackSpeed: 1, sim: null, incidentPages: new Set(), livery: null, team: null, driverName: '', firstVisit: true };
+const ui = { category: 'wheels', suggested: new Set(), view: 'rover', busy: false, runLabel: '', raceTelemetry: null, armedPart: null, demo: null, paused: false, playbackSpeed: 1, sim: null, incidentPages: new Set(), livery: null, team: null, driverName: '', firstVisit: true };
 const scene = createWorkshop(document.querySelector('#scene'));
 const dialog = document.querySelector('#dialog');
-let toastTimer, finishRun = null, runToken = 0, scanToken = 0, liveRace = null;
+let toastTimer, finishRun = null, runToken = 0, liveRace = null;
 function showToast(message) {
   const toast = document.querySelector('#toast'); toast.textContent = message; toast.classList.add('visible');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('visible'), 4200);
@@ -66,11 +65,8 @@ function render() {
   const focusKey = focused?.dataset?.action ? { action: focused.dataset.action, id: focused.dataset.id, category: focused.dataset.category, tab: focused.dataset.tab, terrain: focused.dataset.terrain } : null;
   if(state.phase!=='race'||!document.querySelector('#live-standings'))document.querySelector('#parts-panel').innerHTML = renderParts(state, ui);
   // Rebuild the stats only when the car changes, so the bars get to finish their animation.
-  const statsKey = JSON.stringify([state.build, state.trackId]);
+  const statsKey = JSON.stringify([state.build, state.trackId, state.runs.length, state.qualifying?.time]);
   if (statsKey !== ui.statsKey) { ui.statsKey = statsKey; const panel = document.querySelector('#engineering-panel'); panel.innerHTML = renderEngineering(state); animateSpecs(panel); }
-  // When the story moves to a new chapter, show it; the player can still click back to earlier ones.
-  const current = storyChapters(state).find(chapter => chapter.status === 'current')?.id ?? null;
-  if (current !== ui.currentChapter) { ui.currentChapter = current; ui.viewChapter = null; }
   // The live chat keeps its messages and half-typed input across re-renders.
   if (state.phase !== 'race' || !document.querySelector('#race-chat')) document.querySelector('#intel-panel').innerHTML = renderIntel(state, ui);
   document.querySelector('#action-bar').innerHTML = renderActions(state, ui);
@@ -94,11 +90,10 @@ function render() {
   document.querySelector('.workspace').classList.toggle('race-mode', state.phase === 'race' || !!ui.demo || !!ui.sim);
   document.body.classList.toggle('race-active', state.phase === 'race' || !!ui.demo || !!ui.sim);
   document.querySelector('.workspace').classList.toggle('demo-mode', !!ui.demo || !!ui.sim);
-  scene.setAssembly(state, ui.armedPart);
+  scene.setAssembly(state, ui.armedPart, ui.category);
   scene.setBuild(state.build, { ...state.profile.livery, team: state.profile.team });
   // A team logo file may load after the first paint; redraw once it arrives.
   if (state.profile.team.id !== ui.logoTeam) { ui.logoTeam = state.profile.team.id; loadTeamLogo(ui.logoTeam).then(image => { if (image && ui.logoTeam === state.profile.team.id) { ui.statsKey = null; render(); } }); }
-  scene.setKnowledge?.(state.runs.length > 0 || state.phase !== 'practice');
   if (state.phase === 'race' && ui.raceTelemetry) updateRaceBroadcast(state.race, ui.raceTelemetry);
   if (focusKey && !dialog.open) {
     const candidates = [...document.querySelectorAll(`[data-action="${focusKey.action}"]`)];
@@ -119,7 +114,7 @@ partsPanel.addEventListener('scroll', compactShelf, { passive: true });
 addEventListener('scroll', compactShelf, { passive: true });
 
 function armPart(id) {
-  if(id && (ui.scanning || partAvailability(session.getSnapshot(),id,ui.busy)))return;
+  if(id && (partAvailability(session.getSnapshot(),id,ui.busy)))return;
   ui.armedPart=id;scene.setArmedPart(id);
   document.querySelectorAll('[data-action="pick-part"]').forEach(button=>{button.classList.toggle('picked-up',button.dataset.id===id);button.setAttribute('aria-pressed',String(button.dataset.id===id));});
   const hint=document.querySelector('#scene-hint');
@@ -128,11 +123,10 @@ function armPart(id) {
   if(id){if(matchMedia('(max-width: 640px)').matches)document.querySelector('.scene-card').scrollIntoView({behavior:'instant',block:'center'});}
 }
 function fitPart(id) {
-  if(ui.scanning){showToast('Let the scan finish before fitting a part.');return;}
   const result=dispatch({type:'SET_PART',id});
   if(result.ok){ui.armedPart=null;ui.suggested.clear();scene.setArmedPart(null);if(dialog.open)closeDialog();setView('rover');render();showToast(`${PARTS[id].name} fitted. Check the new specs under the car.`);}
 }
-createAssemblyInteraction({onPick:armPart,onFit:fitPart,getArmed:()=>ui.armedPart,canFit:id=>!ui.scanning&&!partAvailability(session.getSnapshot(),id,ui.busy)});
+createAssemblyInteraction({onPick:armPart,onFit:fitPart,getArmed:()=>ui.armedPart,canFit:id=>!partAvailability(session.getSnapshot(),id,ui.busy)});
 
 // When your car hits trouble the race pauses on the incident box. Its bar runs for the time the incident
 // costs (3–8 s), then the race resumes; Continue or Escape resumes sooner. Each incident shows once.
@@ -224,34 +218,30 @@ function playSimulation(run, label, next) {
 }
 function watchRunAgain(index) {
   const run = session.getSnapshot().runs[index];
-  if (ui.busy || ui.scanning || !run) return;
-  playSimulation(run, `PRACTICE RUN 0${index + 1}`, () => { ui.viewChapter = null; setView('rover'); });
+  if (ui.busy || !run) return;
+  playSimulation(run, `PRACTICE RUN 0${index + 1}`, () => { setView('rover'); });
 }
 function startIncidentDemo(type){
-  if(ui.busy||ui.scanning||!INCIDENTS[type])return;
+  if(ui.busy||!INCIDENTS[type])return;
   closeDialog();const state=session.getSnapshot();
   ui.demo=type;
   const demo=createIncidentDemo(state.build,type,'Test car',state.trackId);
   beginAnimation(demo.field,`${INCIDENTS[type].title} · engineering lab`,()=>{ui.demo=null;ui.raceTelemetry=null;setView('rover');},18000,demo);
 }
 
-function startRun(type, allowNoPrediction = false) {
-  if (ui.busy || ui.scanning) return;
-  const state = session.getSnapshot();
-  if (!state.predictionLocked && !allowNoPrediction) { openDialog(predictionWarningDialog(type)); return; }
+function startRun(type) {
+  if (ui.busy) return;
   const result = dispatch({ type: type === 'test' ? 'PRACTICE' : 'QUALIFY' });
   if (!result.ok) return;
   const updated = session.getSnapshot(), run = type === 'test' ? updated.runs.at(-1) : updated.qualifying;
   if (type === 'test') {
     playSimulation(run, `PRACTICE RUN 0${updated.runs.length}`, () => {
-      ui.viewChapter = null; // show the new report in the current chapter
       setView('rover');
       showToast('Run complete. Your report shows what to try next.');
     });
     return;
   }
   beginAnimation([{ id: 'you', name: updated.profile.name, build: updated.build, result: run, color: updated.profile.livery.paint }], 'Qualifying lap', () => {
-    ui.viewChapter = null;
     dispatch({ type: 'FINISH_QUALIFY' });
     setView('rover');
     showToast('Benchmark set. You can now adjust two part slots.');
@@ -271,7 +261,7 @@ function startReplay(id, distance) {
 }
 function reset(build = null) {
   if (ui.busy) return;
-  scanToken++; ui.scanning = false; ui.guess = null; ui.category = 'wheels'; ui.viewChapter = null; ui.suggested.clear(); ui.raceTelemetry = null; ui.armedPart = null; ui.demo = null; ui.sim = null;
+  ui.category = 'wheels'; ui.suggested.clear(); ui.raceTelemetry = null; ui.armedPart = null; ui.demo = null; ui.sim = null;
   session.reset(build); setView('rover'); closeDialog(); showToast('Fresh car, fresh possibilities. Your two practice runs are ready.');
 }
 
@@ -334,13 +324,13 @@ document.addEventListener('click', async event => {
   const button = event.target.closest('[data-action]'); if (!button || button.disabled) return;
   const { action } = button.dataset;
   if (action === 'home') event.preventDefault();
-  if (ui.busy && !['skip-run', 'boost', 'help', 'camera', 'close-dialog', 'race-camera', 'follow-incident', 'pause-race', 'race-speed', 'part-details', 'incident-lab', 'incident-info', 'chat-react', 'view-chapter'].includes(action)) { showToast('Let this run finish, or skip its animation.'); return; }
+  if (ui.busy && !['skip-run', 'boost', 'help', 'camera', 'close-dialog', 'race-camera', 'follow-incident', 'pause-race', 'race-speed', 'part-details', 'incident-lab', 'incident-info', 'chat-react'].includes(action)) { showToast('Let this run finish, or skip its animation.'); return; }
   switch (action) {
     case 'home': case 'briefing': openDialog(briefingDialog(session.getSnapshot())); break;
     case 'workshop': closeDialog(); document.querySelector('.workspace').scrollIntoView({ behavior: 'smooth', block: 'center' }); break;
     case 'help': openDialog(helpDialog()); break;
     case 'tracks': openDialog(tracksDialog(session.getSnapshot())); break;
-    case 'select-track': if (dispatch({ type: 'SELECT_TRACK', id: button.dataset.track }).ok) { ui.guess = null; ui.viewChapter = null; ui.suggested.clear(); closeDialog(); showToast(`${trackById(button.dataset.track).title} selected.`); } break;
+    case 'select-track': if (dispatch({ type: 'SELECT_TRACK', id: button.dataset.track }).ok) { ui.suggested.clear(); closeDialog(); showToast(`${trackById(button.dataset.track).title} selected.`); } break;
     case 'profile': openDialog(profileDialog(session.getSnapshot())); break;
     case 'showroom': openShowroom(); break;
     case 'livery': updateLivery({ [button.dataset.key]: button.dataset.value }, `[data-key="${button.dataset.key}"][data-value="${button.dataset.value}"]`); break;
@@ -361,25 +351,13 @@ document.addEventListener('click', async event => {
     case 'incident-lab': openDialog(incidentLabDialog(null,ui.busy)); break;
     case 'incident-info': openDialog(incidentLabDialog(button.dataset.type,ui.busy)); break;
     case 'incident-demo': startIncidentDemo(button.dataset.type); break;
-    case 'part': if (ui.scanning) { showToast('Let the scan finish before changing parts.'); break; } if (dispatch({ type: 'SET_PART', id: button.dataset.id }).ok) { setView('rover'); } break;
-    case 'guess': ui.guess = button.dataset.terrain; render(); break;
-    case 'predict': if (dispatch({ type: 'PREDICT', terrain: ui.guess }).ok) showToast('Prediction locked. The answer comes after the race.'); break;
-    case 'scan': {
-      if (ui.scanning) break;
-      ui.scanning = true; const token = ++scanToken; render();
-      await new Promise(resolve => setTimeout(resolve, 900));
-      if (token !== scanToken) break;
-      ui.scanning = false; dispatch({ type: 'SCAN' }); break;
-    }
-    case 'open-chapter': ui.viewChapter = button.dataset.chapter; render(); document.querySelector('#intel-panel').scrollIntoView({ behavior: 'smooth', block: 'start' }); break;
-    case 'view-chapter': ui.viewChapter = button.dataset.chapter; render(); break;
+    case 'part': if (dispatch({ type: 'SET_PART', id: button.dataset.id }).ok) { setView('rover'); } break;
+    case 'open-chapter': document.querySelector('#intel-panel').scrollIntoView({ behavior: 'smooth', block: 'start' }); break;
     case 'view': setView(button.dataset.view); break;
     case 'camera': scene.resetCamera(); break;
     case 'test': case 'qualify': startRun(action); break;
-    case 'run-without-guess': closeDialog(); startRun(button.dataset.next, true); break;
-    case 'return-prediction': closeDialog(); ui.viewChapter = null; render(); document.querySelector('#intel-panel').scrollIntoView({ behavior: 'smooth', block: 'start' }); document.querySelector('[data-action="guess"], [data-action="scan"]')?.focus({ preventScroll: true }); break;
     case 'race': {
-      if (ui.scanning || !dispatch({ type: 'RACE' }).ok) break;
+      if (!dispatch({ type: 'RACE' }).ok) break;
       const state = session.getSnapshot();
       resetRaceBroadcast();
       beginAnimation(state.race.field, `${trackById(state.trackId).title} · Eight-lap Grand Prix`, () => { dispatch({ type: 'REVEAL' }); showToast('Chequered flag! Final classification and your AI discovery are ready.'); }, RACE_PLAYBACK_MS);

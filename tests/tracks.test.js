@@ -29,14 +29,9 @@ test('sections tile one lap exactly and use known conditions, stats and incident
   }
 });
 
-test('every track has a closed circuit and a mystery section with three clues per sensor', () => {
+test('every track has a closed circuit and valid sections', () => {
   for (const track of TRACKS) {
     assert.ok(track.points.length >= 12);
-    const mystery = track.mystery, section = track.sections.find(item => item.id === mystery.section);
-    assert.ok(section, track.id);
-    assert.equal(mystery.target, section.condition);
-    assert.ok(mystery.options.includes(mystery.target));
-    for (const sensor of ['camera', 'thermal', 'lidar', 'radar']) assert.equal(mystery.clues[sensor].length, 3, `${track.id}/${sensor}`);
   }
 });
 

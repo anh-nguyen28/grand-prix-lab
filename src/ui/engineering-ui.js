@@ -1,5 +1,5 @@
 import { BUDGET, PARTS, SLOT_LABELS, SLOTS } from '../../shared/content.js';
-import { ENGINEERING, INCIDENTS, setupRisks, specSheet } from '../../shared/engineering.js';
+import { ENGINEERING, INCIDENTS, latestTest, sensorWarnings, setupRisks, specSheet } from '../../shared/engineering.js';
 import { buildStats } from '../../shared/simulation.js';
 import { trackById } from '../../shared/tracks.js';
 import { changedSlots } from '../../shared/game.js';
@@ -25,12 +25,12 @@ let shownSpecs = null;
 const tone = value => value >= 70 ? 'good' : value >= 40 ? 'average' : 'low';
 const verdict = value => value >= 70 ? 'Strong' : value >= 40 ? 'Average' : 'Weak';
 export function renderEngineering(state) {
-  const risks=setupRisks(state.build,trackById(state.trackId)), stats=buildStats(state.build), specs=specSheet(state.build), previous=shownSpecs;
+  const tested=latestTest(state), {seen:risks,hidden}=sensorWarnings(state.build.sensor,tested?setupRisks(tested.build,trackById(tested.trackId)):[]), stats=buildStats(state.build), specs=specSheet(state.build), previous=shownSpecs;
   shownSpecs=Object.fromEntries(specs.map(spec=>[spec.id,spec.value]));
   return `<div class="engineering-header"><span class="eyebrow">CAR STATS</span><button data-action="incident-lab">Preview failures ${icon('arrow')}</button></div><h2 class="stats-title">How your car will race</h2><div class="spec-sheet">${specs.map(spec=>{
     const before=previous?.[spec.id]??spec.value, delta=spec.value-before;
     return `<div class="spec tone-${tone(spec.value)}"><span>${spec.label}</span><strong>${delta?`<em class="spec-delta ${delta>0?'up':'down'}">${delta>0?'+':'−'}${Math.abs(delta)}</em>`:''}${verdict(spec.value)} <small>${spec.value}</small></strong><i><b class="tone-${tone(before)}" style="width:${before}%" data-target="${spec.value}" data-tone="${tone(spec.value)}"></b></i></div>`;
-  }).join('')}</div><div class="setup-risks">${risks.length?risks.map(risk=>`<button data-action="incident-info" data-type="${risk.type}">${icon('info')}<span><strong>${risk.text}</strong><small>${risk.detail}</small></span>${icon('chevron')}</button>`).join(''):'<span class="clean-setup">✓ No major handling or cooling risk. Speed is another question.</span>'}</div><div class="fitted-parts"><span class="eyebrow">FITTED PARTS</span>${SLOTS.map(slot=>`<div><span>${SLOT_LABELS[slot]}</span><strong>${PARTS[state.build[slot]].name}</strong><em>${PARTS[state.build[slot]].cost} cr</em></div>`).join('')}<div class="fitted-total"><span>Total</span><em>${stats.cost} / ${BUDGET} cr</em></div></div>`;
+  }).join('')}</div>${tested?`<div class="setup-risks">${risks.length?risks.map(risk=>`<button data-action="incident-info" data-type="${risk.type}">${icon('info')}<span><strong>${risk.text}</strong><small>${risk.detail}</small></span>${icon('chevron')}</button>`).join(''):`<span class="clean-setup">✓ ${hidden?'No warnings your sensor can read.':'No major handling or cooling risk. Speed is another question.'}</span>`}${hidden?`<span class="clean-setup">${hidden} kind${hidden===1?'':'s'} of trouble your ${PARTS[state.build.sensor].name} cannot read.</span>`:''}</div>`:''}<div class="fitted-parts"><span class="eyebrow">FITTED PARTS</span>${SLOTS.map(slot=>`<div><span>${SLOT_LABELS[slot]}</span><strong>${PARTS[state.build[slot]].name}</strong><em>${PARTS[state.build[slot]].cost} cr</em></div>`).join('')}<div class="fitted-total"><span>Total</span><em>${stats.cost} / ${BUDGET} cr</em></div></div>`;
 }
 // Called after the panel is in the page, so the bars animate from their old width and colour.
 export function animateSpecs(container) {

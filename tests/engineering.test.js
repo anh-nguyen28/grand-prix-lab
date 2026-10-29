@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_BUILD, DEMO_TEAMS, PARTS } from '../shared/content.js';
-import { buildIncidents, INCIDENTS, planIncidents, raceRiskForecast, sectionReport, setupRisks, specSheet } from '../shared/engineering.js';
+import { buildIncidents, INCIDENTS, planIncidents, raceRiskForecast, sectionReport, sensorWarnings, setupRisks, specSheet } from '../shared/engineering.js';
 import { BUDGET } from '../shared/content.js';
 import { buildStats } from '../shared/simulation.js';
 import { TRACKS, trackById } from '../shared/tracks.js';
@@ -115,4 +115,12 @@ test('the setup risks lead with the worst outcome per section, so a fire is anno
   assert.ok(fire, 'the sprint package should list the fire');
   assert.match(fire.detail, /retires on lap 5/);
   assert.equal(risks.filter(risk => risk.section === fire.section).length, 1);
+});
+
+test('a better sensor warns about more kinds of trouble; the radar sees all of it', () => {
+  const items = ['wheelspin', 'overheat', 'bumpbreak', 'fire'].map(type => ({ type }));
+  assert.deepEqual(sensorWarnings('camera', items).seen.map(item => item.type), ['wheelspin']);
+  assert.deepEqual(sensorWarnings('thermal', items).seen.map(item => item.type), ['overheat', 'fire']);
+  assert.equal(sensorWarnings('lidar', items).hidden, 3);
+  assert.deepEqual(sensorWarnings('radar', items), { seen: items, hidden: 0 });
 });

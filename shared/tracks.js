@@ -23,15 +23,6 @@ export const TRACKS = [
         warning: 'Dust and grit through the chicane.', problem: 'The tyres could not hold the line through the grit.', suggestion: 'Downforce and a tough tyre keep the car on line.' }),
     ],
     landmarks: [{ at: .08, name: 'START', label: 'POWER STRAIGHT' }, { at: .35, name: 'T1', label: 'GRAVEL HAIRPIN' }, { at: .56, name: 'HEAT', label: 'HEAT-SOAK STRAIGHT' }, { at: .85, name: 'T2–4', label: 'DUST CHICANE' }],
-    mystery: {
-      section: 'hairpin', question: 'What is the surface in the gravel hairpin?', options: ['dry', 'abrasive', 'damp'], target: 'abrasive',
-      clues: {
-        camera: ['Gravel and grit are scattered over the racing line.', 'Old tyre rubber lies in shreds on the apex.', 'The surface looks dry, but rough and gritty.'],
-        thermal: ['Surface temperature: 41°C. Hot, but not the problem here.', 'Moisture: 3%. Very dry.', 'Friction heat marks line the apex where tyres were torn.'],
-        lidar: ['The surface is covered in sharp, uneven grains.', 'Grain size varies from dust to small stones.', 'The texture is rough and coarse, like sandpaper.'],
-        radar: ['A thin gritty layer sits over firm tarmac.', 'The layer is only a few millimetres deep.', 'The base is solid. The problem is the top layer.'],
-      },
-    },
   },
   {
     id: 'mountain', number: '02', title: 'Mountain Pass', subtitle: 'Cold and wet.', lesson: 'Training', color: '#9caaa0', icon: 'mountain',
@@ -51,15 +42,6 @@ export const TRACKS = [
         warning: 'Cold tyres into a long braking zone.', problem: 'Cold tyres and hot brakes lost stopping power.', suggestion: 'Warm tyres and a well-cooled power unit.' }),
     ],
     landmarks: [{ at: .06, name: 'CLIMB', label: 'SHADED CLIMB' }, { at: .31, name: 'S1', label: 'SWITCHBACKS' }, { at: .52, name: 'WET', label: 'WATERFALL STRAIGHT' }, { at: .72, name: 'SUMMIT', label: 'SUMMIT SWEEPER' }, { at: .91, name: 'T5', label: 'BRAKING ZONE' }],
-    mystery: {
-      section: 'waterfall', question: 'What is the surface on the waterfall straight?', options: ['dry', 'rain', 'cold'], target: 'rain',
-      clues: {
-        camera: ['Water streams across the whole width of the track.', 'Spray hangs over the straight.', 'The kerbs and verges are dark and soaked.'],
-        thermal: ['Surface temperature: 9°C. Cool.', 'Moisture: 96%. The surface is saturated.', 'Cold water has cooled the tarmac below the air temperature.'],
-        lidar: ['The surface is smooth, with a thin shiny layer on top.', 'Ripples move across the layer as the scan repeats.', 'Small puddles fill the low spots along the line.'],
-        radar: ['A layer of water sits above firm tarmac.', 'The water is several millimetres deep.', 'The base is solid. The standing water is the problem.'],
-      },
-    },
   },
   {
     id: 'quarry', number: '03', title: 'Quarry Ring', subtitle: 'Rough and hot.', lesson: 'Generalization', color: '#d4aa76', icon: 'flag',
@@ -79,15 +61,6 @@ export const TRACKS = [
         warning: 'Long dry straight to the flag.', problem: 'Not enough top speed.', suggestion: 'Low drag and a light chassis.' }),
     ],
     landmarks: [{ at: .06, name: 'KERBS', label: 'KERB CHICANE' }, { at: .30, name: 'WASH', label: 'WASHBOARD' }, { at: .51, name: 'HAIRPIN', label: 'FURNACE HAIRPIN' }, { at: .72, name: 'SWEEPS', label: 'QUARRY SWEEPS' }, { at: .92, name: 'FLAG', label: 'CLOSING STRAIGHT' }],
-    mystery: {
-      section: 'washboard', question: 'What is the ground like on the washboard straight?', options: ['dry', 'bumpy', 'hot'], target: 'bumpy',
-      clues: {
-        camera: ['The surface is ribbed with regular ridges.', 'Dust jumps off the ridges as a marshal vehicle crosses.', 'The kerbs are chipped and uneven.'],
-        thermal: ['Surface temperature: 33°C. Warm, nothing unusual.', 'Moisture: 4%. Dry.', 'Temperature alone does not explain the rough ground.'],
-        lidar: ['Ridges repeat every half metre, a few centimetres high.', 'The pattern is regular and fixed: it is not moving.', 'The surface is hard and rigid, but very uneven.'],
-        radar: ['A solid rock base lies under a thin layer.', 'The base itself is rippled and uneven.', 'Nothing loose below the surface: the shape is the problem.'],
-      },
-    },
   },
 ];
 

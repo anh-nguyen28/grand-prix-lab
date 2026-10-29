@@ -27,7 +27,7 @@ function pick(lines, seed) {
 
 // Rival chatter is tied to something that really happened, and often to the part that caused it.
 const LINES = {
-  wheelspin: ['Wrong tyres for that surface. Lesson learned 😅', 'Should have read the sensor clues…', 'Zero grip out there!'],
+  wheelspin: ['Wrong tyres for that surface. Lesson learned 😅', 'Should have listened to the warnings…', 'Zero grip out there!'],
   understeer: ['The front just would not turn 😬', 'Low downforce, wide line. Noted.', 'Missed the apex by a mile'],
   overheat: ['Temps through the roof 🥵', 'Power unit is cooking. Too greedy?', 'Losing power… cooling was the weak spot'],
   brakefade: ['Brakes are fading!', 'Pedal is going long into the corner'],
