@@ -118,7 +118,7 @@ test('mobile: layout, accessible help, setup, and prediction warning', async ({ 
 
 test('choosing a track changes the header, clues and mystery question', async ({ page }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.stack));
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('button',{name:'Drive to the garage'}).click();
   await expect(page.locator('#round-title')).toHaveText('Dune Valley');
   await page.getByRole('button', { name: 'Scan mystery section' }).click();
   await expect(page.locator('.clue.revealed')).toHaveCount(1);

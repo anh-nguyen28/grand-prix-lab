@@ -154,3 +154,45 @@
 @keyframes incident-pop-in{from{opacity:0;margin-top:6px}to{opacity:1;margin-top:0}}
 @media(prefers-reduced-motion:reduce){.incident-pop{animation:none}}
 .standing-team{display:block;margin-top:2px;font-size:9px;font-weight:500;font-style:normal;color:#8e9db3}
+
+/* The warning card counts down to your next incident. */
+.incident-card{position:absolute;left:20px;bottom:76px;z-index:6;width:min(400px,calc(100% - 40px));padding:14px 16px;background:#2b2019f2;border:1px solid #987049;border-left:3px solid #ffb165;border-radius:4px;box-shadow:0 8px 24px #0006;animation:incident-pop-in .25s ease-out}
+.incident-card[hidden]{display:none}
+.incident-card>header{display:flex;justify-content:space-between;align-items:center;gap:10px;font:800 8px var(--display);letter-spacing:1px;color:#ffc48b}
+.incident-card .flag{padding:3px 6px;border-radius:2px;background:#ffb165;color:#141414}
+.incident-label{display:block;margin-top:10px;font:700 8px var(--display);letter-spacing:1.2px;color:#ffcc97}
+.incident-card>strong{display:block;margin:4px 0 8px;font:600 17px var(--display);color:#fff}
+.incident-card>p{margin:0;font-size:11px;line-height:1.6;color:#e7cdb6}
+.incident-loading{margin-top:12px}
+.incident-bar{height:6px;border-radius:3px;background:#ffffff1f;overflow:hidden}
+.incident-bar>i{display:block;height:100%;width:0;background:#ffb165;transition:width .16s linear}
+.incident-loading>span{display:block;margin-top:6px;font:10px ui-monospace,monospace;color:#ffcc97}
+.incident-loading b{color:#fff}
+@media(max-width:640px){
+  .incident-card{left:10px;right:10px;bottom:63px;width:auto;padding:11px 12px}
+  .incident-card>strong{font-size:14px}
+  .incident-card>p{font-size:10px}
+  .scene-card:has(.incident-card:not([hidden])) .circuit-map{display:none}
+}
+@media(prefers-reduced-motion:reduce){.incident-card{animation:none}.incident-bar>i{transition:none}}
+
+/* The incident loading screen: what happened, and a bar with the seconds lost, in the middle of the race view. */
+.incident-page{position:absolute;inset:0;z-index:20;display:grid;place-items:center;padding:16px;background:#05080d99}
+.incident-page[hidden]{display:none}
+.incident-page-inner{width:min(460px,100%);max-height:100%;overflow:auto;padding:26px 28px 20px;text-align:center;background:#0d1219;border:1px solid #2b3647;border-radius:2px}
+.incident-page-meta{display:flex;align-items:center;justify-content:center;gap:8px;margin:0;font-size:12px;color:#8d9bb0}
+.incident-flag{width:12px;height:9px;background:#ffd23f;flex:none}
+.incident-page[data-type="fire"] .incident-flag{background:#ff3b30}
+.incident-page h2{margin:10px 0 8px;font:600 26px/1.2 var(--display);color:#fff}
+.incident-page-inner>p:not(.incident-page-meta){margin:0;font-size:13px;line-height:1.55;color:#b4c0d1}
+.incident-page-inner>.incident-page-repeat{margin-top:6px;font-size:12px;color:#8d9bb0}
+.incident-page-inner>.incident-bar{height:8px;margin-top:24px;border-radius:0;background:#1c2532}
+.incident-page-inner>.incident-bar>i{background:#ffd23f;transition:none}
+.incident-page[data-type="fire"] .incident-bar>i{background:#ff3b30}
+.incident-page-time{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:10px;font-size:12px;color:#8d9bb0}
+.incident-page-cost{font:700 26px/1 var(--display);font-variant-numeric:tabular-nums;color:#ffd23f}
+.incident-page[data-type="fire"] .incident-page-cost{color:#ff5a4f}
+.incident-page-continue{display:inline-flex;align-items:center;gap:8px;margin-top:20px;padding:0;border:0;background:none;color:#c9d4e3;font:600 13px var(--display);cursor:pointer}
+.incident-page-continue:hover{color:#fff;text-decoration:underline}
+.incident-page-continue kbd{padding:1px 5px;border:1px solid #3a4658;border-radius:2px;font:500 10px var(--display);color:#8d9bb0}
+@media(max-width:640px){.incident-page-inner{padding:20px 18px 16px}.incident-page h2{font-size:20px}.incident-page-cost{font-size:22px}}

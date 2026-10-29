@@ -1,61 +1,119 @@
-# AI Grand Prix — engineering and spectator prototype
+<div align="center">
 
-An independent F1-inspired garage and player-workflow prototype in `grand-prix-lab`. No changes are made to the neighboring `ai-grand-prix` project.
+# AI Grand Prix
 
-## Open it
+**Build a car. Teach it the track. Race 19 rivals.**
 
-On macOS, double-click **Start Preview.command** in Finder. It starts the server and opens **http://localhost:4174**. Keep that Terminal window open; Control-C stops it.
+A browser racing game about how AI learns: your car only knows what you teach it.
 
-Or, with Node.js 22.12+:
+<img src=".github/readme/race.gif" alt="A 20-car race on Dune Valley, then the incident screen as your car loses time" width="600">
+
+</div>
+
+---
+
+## How a round works
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 1 · Make it yours
+Pick one of 11 F1 teams or name your own, then choose paint, finish, stripes, helmet and race number on a spotlit turntable. Looks only, no effect on pace.
+
+</td>
+<td width="50%"><img src=".github/readme/showroom.gif" alt="Changing teams in the showroom: McLaren orange, Ferrari red, Williams blue"></td>
+</tr>
+<tr>
+<td width="50%"><img src=".github/readme/garage.png" alt="The garage: parts shelf, 3D car and car stats"></td>
+<td width="50%" valign="top">
+
+### 2 · Build and test
+Drag parts onto the 3D car across five slots: tyres, power, aero, chassis and sensor. You have 90 credits, which isn't enough for the best of everything. Two test laps show where your car struggles.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 3 · Race
+Eight laps against 19 rivals in about 3 minutes, with TV-style cameras, a live timing tower and race chat. If a section is beyond your car, you lose time, and the race pauses to show what happened.
+
+</td>
+<td width="50%"><img src=".github/readme/incident.png" alt="The incident screen: what happened and the time lost"></td>
+</tr>
+<tr>
+<td width="50%"><img src=".github/readme/results.png" alt="Results: finishing place, incident reel and lessons"></td>
+<td width="50%" valign="top">
+
+### 4 · Learn and rebuild
+The results show your finishing place, a replay of every incident, and what the race revealed about the track. Rebuild from the same car and try again.
+
+</td>
+</tr>
+</table>
+
+## Play it
+
+Needs Node.js 22.12 or newer.
 
 ```sh
 npm install
 npm run dev
 ```
 
-The session opens in the **Showroom**: name your driver, join one of the 11 F1 teams (or name your own team; picking a team loads its colours), and pick body paint (12 colours or any custom colour), finish (gloss, matte, metallic), accent colour, livery style, helmet and race number on a spotlit turntable, then **Drive to the garage**. The header's **Showroom** link reopens it at any time except mid-race; Escape leaves without changes. The livery is cosmetic only and follows your car onto the track, the nameplates, the minimap and the chat. Your team badge sits on the car's sidepods and rear wing and appears in the race HUD, timing tower, car nameplate and results. No official logos are bundled: each team shows an original monogram badge until a logo file the workshop may use is added to `public/team-logos/` (see the README there). Use **Your driver** to set your name. Drag an illustrated part onto the car, double-click it, or tap a part and then the highlighted fitting point. The garage shows the parts shelf, the car and its stats side by side at the same height (the parts box scrolls; its header compacts to a one-line budget and smaller tabs as you scroll), with Field notes across the full width below. **More details** explains each option. **Preview failures** opens the engineering incident lab.
+Then open **http://127.0.0.1:4174**. On macOS you can also double-click **Start Preview.command**.
 
-## Playable now
+## What's inside
 
-- Showroom livery editor before the garage (`src/ui/showroom.js`, `src/scene/showroom.js`), validated by `cleanLivery` in `shared/content.js`.
-- Original 3D open-wheel car with visible component changes and projected fitting points.
-- Visual parts shelf, pointer drag-and-drop, tap/keyboard fitting and detailed part inspection.
-- **Three tracks with different conditions** (Dune Valley: dry, abrasive, hot; Mountain Pass: cold, damp, rain; Quarry Ring: bumpy, hot, abrasive), each with 4–5 sections that demand different stats from the car. A section the car cannot handle costs time, then causes an incident, then (on crashable sections) a crash worth a big time loss. The car keeps racing; only the brake fire retires it.
-- Five slots and 28 parts (9 tyres, 6 power units, 5 aero packages, 4 chassis, 4 sensors), each with its own look on the 3D car and the shelf, a 90-credit budget that rules out the best of everything, two practice tests and qualifying.
-- Several different builds can win on each track, no build wins all three, and about a third of affordable builds crash or retire (see `tests/balance.test.js`).
-- **How your car will race** shows six specs (top speed, cornering, wet grip, cooling, tyre life, stability) read from the same stats that decide each section, plus the setup's risks. The practice report adds a **section forecast**: the condition, the baseline, your score, the weakest stat and the best single-part swaps within budget.
-- **Field notes** tell the round as a story: Rae, your race engineer, walks you through teaching your car like an AI, chapter by chapter (data → label → training → validation → real world). The lesson is named in the epilogue.
-- **A 20-car, eight-lap race in about 3 minutes**, with a start-light sequence. The rivals are a realistic workshop field: two strong builds, a dense midfield, budget cars and two sprint-package gambles.
-- **TV director, Circuit and Follow me** cameras. The director queues every incident, cuts to it, and shows a second simultaneous incident in a picture-in-picture inset. Full nameplates for the cars that matter right now; code chips for the rest.
-- Larger circuit with named corners, braking/acceleration zones, direction arrows and a live minimap.
-- A compact 20-row timing tower with live gaps, warning and incident tags; F1-style callouts for overtakes, battles, fastest lap and the final lap; a gap readout and an ERS attack window within half a second of the car ahead.
-- Every incident has three beats: a **warning** (amber ring, tower tag, engineer call) about 3 race seconds before, the **moment** (yellow flag graphic, ring, effects, minimap pin), and the **impact** (positions lost and who got past).
-- An explicitly undercooled sprint package: early pace, heat, brake fade, a visible lap-5 fire and retirement with zero finishing points.
-- Six separate 18-second incident demonstrations, including a deliberate blocked-duct brake fire. These do not affect the player's build, tests or score.
-- Local pause, 1×/2× playback and skip controls. The race pauses if the browser tab becomes hidden.
-- **Live chat** in the right-hand column during the race: race control (lights out, merged incident lines, fastest lap, final lap, your position changes), rival drivers reacting to real events (often naming the part that caused them), and your messages and one-tap reactions. 80 characters, one message every 2 seconds, a starter word filter and HTML escaping, defined in `shared/chat.js` so a server can enforce the same rules. Rivals are simulated; there is no real multiplayer chat yet.
-- **Test runs are one live lap:** pressing Test car plays your car alone for one lap, and every weak section shows the worst problem it causes in the race, in order (the car shudders or slides, a pop-up names it and the seconds lost, a caption says when it first happens in the race). **Watch run again** replays that lap from the report.
-- **Learning loop:** practice reports forecast race risks with Watch and Fix it (highlighting the parts that remove each risk). Results show a podium, your incident reel with exact replays and fixes, three lessons from the field, and **Rebuild from this car** for the next attempt.
-- Desktop/mobile layouts that scale up on large screens, and a track picker.
+|  |  |
+|---|---|
+| **3 tracks** | Dune Valley (hot, abrasive), Mountain Pass (cold, wet), Quarry Ring (bumpy). Each has 4–5 sections that test different parts of the car. |
+| **28 parts** | 9 tyres, 6 power units, 5 aero packages, 4 chassis and 4 sensors, each with its own look on the car. No single build wins on every track. |
+| **Incidents** | Most cost a few seconds, and a crash costs more. Only a brake fire puts you out of the race. Each one is warned about ahead of time and replayable afterwards. |
+| **Broadcast view** | TV director, circuit and follow cameras, picture-in-picture for simultaneous incidents, a minimap, and callouts for overtakes and battles. |
+| **Race chat** | Race control, rivals reacting to what happens on track, and your own messages and reactions. |
+| **Field notes** | Rae, your race engineer, explains each step as teaching an AI: data → label → training → validation → real world. |
 
-The 19 rivals are simulated. This prototype has no live multiplayer, persistence, host/projector connection or authentication. Refreshing resets the session. WebGL is needed for the visual car/race experience. The mixed-surface car rules are educational abstractions, not real F1 specifications. Scored races can include a disclosed setup-driven brake fire and retirement. Incidents are authored, repeatable scenarios rather than a full physics simulation. Contact currently means a kerb strike rather than car-to-car collision physics.
+<details>
+<summary><b>How it's built</b></summary>
 
-## Design and research
+<br>
 
-- [DESIGN.md](DESIGN.md): complete workflow, rules, incident table and architecture.
-- [RESEARCH.md](RESEARCH.md): study of official EA SPORTS F1 25, F1 Manager and Roblox material, engineering sources, design conclusions and full-build priorities.
-- `artifacts/`: screenshots of the garage, detailed options, incident demo and race views.
+Vanilla JavaScript, [Vite](https://vitejs.dev) and [three.js](https://threejs.org). No framework, no backend.
 
-Pure setup/race rules live in `shared/`. Browser interaction and 3D presentation are separated from the session adapter. The full build must move authority, timing and boost timestamps to the server; local playback controls must become host controls.
+- `shared/` holds the game rules: parts, tracks, race timeline and incidents. They are pure and deterministic, and ready to move to a server unchanged.
+- `src/adapters/local-session.js` is the session. Views read snapshots and send commands, and never decide outcomes themselves.
+- `src/ui/` builds the interface and `src/scene/` draws the 3D garage, showroom and circuit.
 
-## Checks
+Races are authored and repeatable, not a physics simulation. The 19 rivals and the chat are simulated, and refreshing the page starts a new session.
+
+</details>
+
+<details>
+<summary><b>Tests</b></summary>
+
+<br>
 
 ```sh
-npm test
-npm run build
-npm run test:browser
+npm test               # game rules, including a balance check on every affordable build
+npm run build          # production bundle
+npm run test:browser   # Playwright, plays full races, takes a few minutes
 ```
 
-The browser suite requires Playwright Chromium (`npx playwright install chromium` if needed). It includes a full natural-duration race, so allow several minutes. It also verifies physical assembly, detailed inspection, the isolated fire demo, spectator controls, animated ranking, separated labels, a scored fire/retirement sequence and mobile fitting/ERS. Screenshots are saved in `artifacts/`.
+If Chromium is missing, run `npx playwright install chromium`.
 
-`npm run preview` serves the production bundle. Fonts and artwork are local; no backend is needed. Competitive balance, participant comprehension and 40-client performance still require full-build tests and playtests.
+</details>
+
+<details>
+<summary><b>Team logos</b></summary>
+
+<br>
+
+No official logos are included. Each team shows an original badge in its colours. Logo files you have permission to use can be added to `public/team-logos/` (see the README there).
+
+</details>
+
+<br>
+
+<div align="center"><sub>An independent prototype. Not affiliated with Formula 1 or any team.</sub></div>

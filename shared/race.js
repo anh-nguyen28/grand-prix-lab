@@ -12,7 +12,18 @@ function noise(id, lap, sector) {
   return ((hash >>> 0) % 1000) / 1000 - .5;
 }
 
-const eventSpan = event => event.type === 'fire' ? .003 : .085;
+// A brake fire stops the car over a short stretch, long enough to brake rather than halt on the spot.
+const eventSpan = event => event.type === 'fire' ? .025 : .085;
+// Inside an incident the car brakes from its racing speed, crawls, then accelerates back, instead of
+// switching speed at the edges. u is the share of the incident's time; rIn and rOut are the racing speeds
+// before and after, relative to the incident's average speed. Returns the share of its distance covered.
+function easeIncident(u, rIn, rOut) {
+  const r = (rIn + rOut) / 2; if (!(r > 1)) return u;
+  const d = Math.min(.3, .5 / r), crawl = (1 - d * r) / (1 - d);
+  const ramp = s => s >= d ? d / 2 : s / 2 + d / (2 * Math.PI) * Math.sin(Math.PI * s / d);
+  return crawl * u + (rIn - crawl) * ramp(u) + (rOut - crawl) * (d / 2 - ramp(1 - u));
+}
+const pieceSpeed = piece => piece && !piece.event ? (piece.to - piece.from) / piece.duration : null;
 // One timeline piece per section per lap. Incidents add their loss over a short stretch of the section.
 function buildTimeline(segments, incidents, sections) {
   const timeline = [], events = []; let clock = 0;
@@ -123,6 +134,12 @@ export function sampleRace(race, elapsed) {
     if(retired)distance=entry.retirement.to;
     const finished = !retired && virtualTime >= entry.result.time;
     const fullEvent=piece.event?entry.incidents.find(event=>event.distance===piece.event.distance&&event.type===piece.event.type):null;
+    if(fullEvent&&!retired){
+      const time=fullEvent.end-fullEvent.start,average=(fullEvent.to-fullEvent.from)/time;
+      const before=pieceSpeed(entry.timeline.find(item=>Math.abs(item.start+item.duration-fullEvent.start)<1e-9)),after=pieceSpeed(entry.timeline.find(item=>Math.abs(item.start-fullEvent.end)<1e-9));
+      const u=Math.max(0,Math.min(1,(virtualTime-fullEvent.start)/time));
+      distance=Math.min(race.laps,fullEvent.from+(fullEvent.to-fullEvent.from)*easeIncident(u,(before??after??average)/average,(after??before??average)/average));
+    }
     const incident = retired ? {...entry.retirement,progress:1,effect:'steam',label:'RETIRED · BRAKE FAILURE'} : !finished && piece.event ? {...piece.event,progress:Math.min(1,(virtualTime-fullEvent.start)/(fullEvent.end-fullEvent.start))} : null;
     const completedIncidents = entry.incidents.filter(event => virtualTime >= event.end);
     // A short warning before each incident gives spectators time to look.
