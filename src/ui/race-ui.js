@@ -1,5 +1,5 @@
 import { BOOST_COOLDOWN, RACE_LAPS, driverCode } from '../../shared/content.js';
-import { fastestLap, findBattles, incidentImpact } from '../../shared/race.js';
+import { WARNING_SECONDS, fastestLap, findBattles, incidentImpact } from '../../shared/race.js';
 import { CONDITIONS } from '../../shared/conditions.js';
 import { trackById, trackZone } from '../../shared/tracks.js';
 import { escapeHtml as e, icon } from './icons.js';
@@ -65,8 +65,26 @@ function updateCallouts(race, rows, elapsed, started) {
   }
 }
 
+// The warning card: a countdown to your next incident. The incident itself opens the incident page.
+function updateIncidentCard(race, you) {
+  const element = document.querySelector('#incident-card');
+  if (!element) return false;
+  const warning = !you.incident && !you.retired && !you.finished ? you.warning : null;
+  element.hidden = !warning;
+  if (!warning) { delete element.dataset.key; return !!you.incident && !you.retired; }
+  const key = `${warning.type}:${warning.lap}`;
+  if (element.dataset.key !== key) {
+    element.dataset.key = key;
+    element.innerHTML = `<header><span class="flag">INCOMING · ${e(trackZone(trackById(race.trackId), warning.distance).name)}</span><span>LAP ${warning.lap}</span></header><small class="incident-label">${e(warning.label)}</small><strong>${e(warning.title)}</strong><p>${e(warning.warning)}</p><div class="incident-loading"><div class="incident-bar" role="progressbar" aria-label="Time to incident" aria-valuemin="0" aria-valuemax="100"><i></i></div><span aria-hidden="true"></span></div>`;
+  }
+  const left = Math.max(0, warning.start - you.virtualTime), share = 1 - left / WARNING_SECONDS, bar = element.querySelector('.incident-bar');
+  bar.querySelector('i').style.width = `${Math.round(share * 100)}%`; bar.setAttribute('aria-valuenow', String(Math.round(share * 100)));
+  element.querySelector('.incident-loading>span').innerHTML = `Reaching it in <b>${left.toFixed(1)}s</b>`;
+  return true;
+}
+
 // The lower-third: the incident the director is showing, then its impact once the car recovers.
-function updateBanner(race, rows, elapsed, director) {
+function updateBanner(race, rows, elapsed, director, cardShown) {
   const element = document.querySelector('#incident-banner');
   if (!element) return;
   const focus = director?.incident ? rows.find(row => row.id === director.focus && row.incident) : null;
@@ -83,7 +101,8 @@ function updateBanner(race, rows, elapsed, director) {
     impact = { ...incidentImpact(race, id, event), id, event, name: rows.find(row => row.id === id).name, until: elapsed + 5 };
   }
   if (impact && elapsed > impact.until) impact = null;
-  element.hidden = !banner && !impact;
+  // Your own incident is on the card, so the lower-third stays out of its way.
+  element.hidden = (!banner && !impact) || (cardShown && (!!banner || impact?.id === 'you'));
   if (banner) {
     const { row, event } = banner, key = `live:${row.id}:${event.type}:${event.lap}`;
     element.dataset.incidentType = event.type; element.dataset.mode = 'live';
@@ -134,7 +153,7 @@ export function updateRaceBroadcast(race, broadcast) {
     }
     lastPositions.set(row.id, row.position);
   }
-  updateBanner(race, rows, elapsed, director);
+  updateBanner(race, rows, elapsed, director, updateIncidentCard(race, you));
 
   const ahead = rows.find(row => row.position === you.position - 1), behind = rows.find(row => row.position === you.position + 1 && !row.retired);
   const gapAhead = ahead && !you.retired && !you.finished ? you.gap - ahead.gap : null, gapBehind = behind && !you.retired && !you.finished ? behind.gap - you.gap : null;

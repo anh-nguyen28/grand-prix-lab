@@ -31,6 +31,7 @@ import { briefingDialog, helpDialog, predictionWarningDialog, profileDialog, tra
 import { TRACKS, trackById } from '../shared/tracks.js';
 import { icon } from './ui/icons.js';
 import { sendPlayerMessage } from './ui/race-chat.js';
+import { costText, loadingText, renderIncidentPage } from './ui/incident-page.js';
 import { storyChapters } from '../shared/story.js';
 
 const app = document.querySelector('#app');
@@ -40,7 +41,7 @@ const session = createLocalSession();
 const SPEEDS = [1, 1.5, 2, 0.5];
 // A practice run is one lap, played a little slower than real time so each problem is easy to read.
 const PRACTICE_SLOWDOWN = 1.3;
-const ui = { category: 'wheels', viewChapter: null, currentChapter: null, suggested: new Set(), guess: null, view: 'rover', busy: false, scanning: false, runLabel: '', raceTelemetry: null, armedPart: null, demo: null, paused: false, playbackSpeed: 1, sim: null, livery: null, team: null, driverName: '', firstVisit: true };
+const ui = { category: 'wheels', viewChapter: null, currentChapter: null, suggested: new Set(), guess: null, view: 'rover', busy: false, scanning: false, runLabel: '', raceTelemetry: null, armedPart: null, demo: null, paused: false, playbackSpeed: 1, sim: null, incidentPages: new Set(), livery: null, team: null, driverName: '', firstVisit: true };
 const scene = createWorkshop(document.querySelector('#scene'));
 const dialog = document.querySelector('#dialog');
 let toastTimer, finishRun = null, runToken = 0, scanToken = 0, liveRace = null;
@@ -133,9 +134,41 @@ function fitPart(id) {
 }
 createAssemblyInteraction({onPick:armPart,onFit:fitPart,getArmed:()=>ui.armedPart,canFit:id=>!ui.scanning&&!partAvailability(session.getSnapshot(),id,ui.busy)});
 
+// When your car hits trouble the race pauses on the incident box. Its bar runs for the time the incident
+// costs (3–8 s), then the race resumes; Continue or Escape resumes sooner. Each incident shows once.
+let incidentPage=null;
+const syncPauseButton=()=>{const pause=document.querySelector('[data-action="pause-race"]');if(pause){pause.textContent=ui.paused?'▶':'Ⅱ';pause.setAttribute('aria-label',ui.paused?'Resume race':'Pause race');}};
+function openIncidentPage(race,broadcast){
+  const you=broadcast.rows.find(row=>row.id==='you');
+  if(!you?.incident||you.retired||you.finished||!broadcast.started)return;
+  const event=race.field.find(car=>car.id==='you').incidents.find(item=>item.distance===you.incident.distance&&item.type===you.incident.type);
+  const key=event&&`${event.type}:${event.lap}:${event.distance}`;
+  if(!event||ui.incidentPages.has(key))return;ui.incidentPages.add(key);
+  closeIncidentPage(false);
+  ui.paused=true;scene.setPlayback({paused:true});syncPauseButton();
+  const element=document.querySelector('#incident-page'),fire=event.type==='fire';
+  const earlier=race.field.find(car=>car.id==='you').incidents.filter(item=>item.type===event.type&&item.lap<event.lap).map(item=>item.lap);
+  element.innerHTML=renderIncidentPage(race,event,earlier);element.dataset.type=fire?'fire':'incident';element.hidden=false;
+  element.querySelector('[data-action="incident-continue"]').focus({preventScroll:true});
+  const bar=element.querySelector('.incident-bar'),fill=bar.querySelector('i'),label=element.querySelector('.incident-page-time>span'),cost=element.querySelector('.incident-page-cost');
+  const length=(fire?7:Math.max(3,Math.min(8,event.loss)))*1000,start=performance.now();
+  incidentPage={frame:0,element};
+  const step=now=>{
+    if(!incidentPage)return;
+    const share=Math.min(1,(now-start)/length);
+    fill.style.width=`${share*100}%`;bar.setAttribute('aria-valuenow',String(Math.round(share*100)));label.textContent=loadingText(event,share);cost.textContent=costText(event,share);
+    if(share<1)incidentPage.frame=requestAnimationFrame(step);else incidentPage.frame=setTimeout(()=>closeIncidentPage(true),600);
+  };
+  step(start);
+}
+function closeIncidentPage(resume){
+  if(!incidentPage)return;
+  cancelAnimationFrame(incidentPage.frame);clearTimeout(incidentPage.frame);incidentPage.element.hidden=true;incidentPage=null;
+  if(resume&&ui.busy){ui.paused=false;scene.setPlayback({paused:false});syncPauseButton();}
+}
 function beginAnimation(entries,label,next,duration=6500,demoRace=null){
   const racing=entries.length>1||!!demoRace;
-  ui.busy=true;ui.runLabel=label;ui.view='course';ui.armedPart=null;ui.paused=false;ui.playbackSpeed=1;const token=++runToken;
+  ui.busy=true;ui.runLabel=label;ui.view='course';ui.armedPart=null;ui.paused=false;ui.playbackSpeed=1;ui.incidentPages=new Set();const token=++runToken;
   setView('course');render();document.querySelector('#corner-readout').hidden=!racing||!!demoRace;
   const overlay=document.querySelector('#run-overlay'),tools=document.querySelector('#broadcast-tools'),caption=document.querySelector('#demo-caption');overlay.hidden=false;
   overlay.classList.toggle('race-overlay',racing);tools.hidden=!racing;tools.innerHTML=racing?renderBroadcastTools(!!demoRace):'';
@@ -146,7 +179,7 @@ function beginAnimation(entries,label,next,duration=6500,demoRace=null){
   overlay.innerHTML=racing?`<div class="start-sequence"><span class="start-team">${badge}${profile.name.replaceAll('&','&amp;').replaceAll('<','&lt;')} · ${profile.team.name.replaceAll('&','&amp;').replaceAll('<','&lt;')}</span><div class="start-lights">${'<i></i>'.repeat(5)}</div><strong>HOLD YOUR BREATH.</strong></div><div class="broadcast-hud"><span class="live-tag"><span class="live-dot"></span><span id="race-chapter">STARTING GRID</span></span><div><small>RACE LAP</small><strong id="race-lap">01 / ${String(RACE_LAPS).padStart(2,'0')}</strong></div><div class="hud-you">${demoRace?'':badge}<small>YOUR POSITION</small><strong id="your-position">—</strong></div><div><small>RACE TIME</small><strong id="race-clock">0:00.0</strong></div></div><div class="run-progress"><i></i></div>`:`<div><span class="live-dot"></span><strong>${label}</strong><span id="run-progress-label">0%</span></div><div class="run-progress"><i></i></div>`;
   if(demoRace)overlay.querySelector('.start-sequence').hidden=true;
   finishRun=()=>{
-    if(token!==runToken)return;runToken++;finishRun=null;ui.busy=false;overlay.hidden=true;tools.hidden=true;caption.hidden=true;document.querySelector('#corner-readout').hidden=true;document.querySelector('#incident-banner').hidden=true;document.querySelector('#race-callout').hidden=true;
+    if(token!==runToken)return;runToken++;finishRun=null;ui.busy=false;overlay.hidden=true;tools.hidden=true;caption.hidden=true;document.querySelector('#corner-readout').hidden=true;document.querySelector('#incident-banner').hidden=true;document.querySelector('#incident-card').hidden=true;closeIncidentPage(false);document.querySelector('#race-callout').hidden=true;
     next();render();document.querySelectorAll('[data-action="view"]').forEach(button=>button.disabled=false);
   };
   scene.animateRun(entries,duration,()=>finishRun?.(),(progress,broadcast)=>{
@@ -163,7 +196,7 @@ function beginAnimation(entries,label,next,duration=6500,demoRace=null){
         const row=broadcast.rows[0],stage=document.querySelector('#demo-stage');
         if(stage)stage.textContent=row.incident?(row.incident.type==='fire'&&row.incident.progress<.25?'SMOKE · heat building at the brake':`${row.incident.label} · watch the car`):row.completedIncidents.length?'Demonstration complete. Returning to the garage…':'Approaching the test zone…';
         const pause=document.querySelector('[data-action="pause-race"]');if(pause){pause.textContent=ui.paused?'▶':'Ⅱ';pause.setAttribute('aria-label',ui.paused?'Resume race':'Pause race');}
-      }else updateRaceBroadcast(liveRace,broadcast);
+      }else{updateRaceBroadcast(liveRace,broadcast);openIncidentPage(liveRace,broadcast);}
     }
   },racing?{getRace:()=>demoRace||liveRace,demo:!!demoRace,practice:!!ui.sim}:{});
   if(racing&&(matchMedia('(max-width: 640px)').matches||innerHeight<1000))document.querySelector('.scene-card').scrollIntoView({behavior:'instant',block:'start'});
@@ -357,6 +390,7 @@ document.addEventListener('click', async event => {
     case 'pause-race': ui.paused=!ui.paused;scene.setPlayback({paused:ui.paused}); break;
     case 'race-speed': ui.playbackSpeed=SPEEDS[(SPEEDS.indexOf(ui.playbackSpeed)+1)%SPEEDS.length];scene.setPlayback({speed:ui.playbackSpeed});button.textContent=`${ui.playbackSpeed}×`; break;
     case 'boost': if (ui.raceTelemetry?.started && !ui.paused) dispatch({ type: 'BOOST', elapsed: ui.raceTelemetry.elapsed }); break;
+    case 'incident-continue': closeIncidentPage(true); break;
     case 'skip-run': scene.finishAnimation(); break;
     case 'chat-react': { const error = sendPlayerMessage(button.dataset.text, { color: session.getSnapshot().profile.livery.paint }); if (error) showToast(error); break; }
     case 'reset': reset(); break;
@@ -373,6 +407,7 @@ document.addEventListener('click', async event => {
   }
 });
 document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && incidentPage) { event.preventDefault(); closeIncidentPage(true); return; }
   if (event.code !== 'Space' || event.repeat || dialog.open || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(document.activeElement?.tagName)) return;
   if (session.getSnapshot().phase === 'race') { event.preventDefault(); document.querySelector('[data-action="boost"]')?.click(); }
 });

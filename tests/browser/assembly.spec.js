@@ -38,7 +38,7 @@ test('physical assembly, part details, safe alternatives, and an isolated brake-
 
 test('the chassis slot has its own tab, fitting point and parts',async({page})=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.stack));
-  await page.goto('/');await expect(page.locator('#scene')).toHaveAttribute('data-ready','true');
+  await page.goto('/');await page.getByRole('button',{name:'Drive to the garage'}).click();await expect(page.locator('#scene')).toHaveAttribute('data-ready','true');
   await expect(page.locator('.part-tabs').getByRole('tab')).toHaveCount(5);
   await expect(page.locator('[data-action="fit-target"][data-fit-slot="chassis"]')).toContainText('Stiff aluminium');
   await page.getByRole('tab',{name:'Chassis',exact:true}).click();
