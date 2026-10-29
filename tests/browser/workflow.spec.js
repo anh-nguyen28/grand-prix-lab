@@ -108,7 +108,7 @@ test('mobile: layout, accessible help, and setup', async ({ page }) => {
 
 test('choosing a track changes the header and resets practice', async ({ page }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.stack));
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('button',{name:'Drive to the garage'}).click();
   await expect(page.locator('#round-title')).toHaveText('Dune Valley');
   await page.getByRole('button', { name: /Test car/ }).click();
   await page.getByRole('button', { name: 'Skip animation' }).click();

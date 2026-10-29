@@ -114,7 +114,7 @@ export function createWorkshop(container) {
       // Four lanes spread a large field across the track; small fields keep two.
       return {mesh,effects,entry,label,popup,popupState:null,position,connector,dot,lane:entries.length>6?[-.66,-.22,.22,.66][index%4]:(index%2?1:-1)*.47};
     });
-    active={playhead:0,lastTick:performance.now(),duration:options.getRace?duration:reducedMotion?600:duration,done,onProgress,getRace:options.getRace,countdown:options.replay?0:options.getRace?(options.demo?800:6500):0,lastUpdate:-1,paused:false,speed:1,demo:!!options.demo,replay:options.replay||null,elapsed:0};
+    active={playhead:0,lastTick:performance.now(),duration:options.getRace?duration:reducedMotion?600:duration,done,onProgress,getRace:options.getRace,countdown:options.replay?0:options.getRace?(options.demo?800:6500):0,shake:0,lastUpdate:-1,paused:false,speed:1,demo:!!options.demo,replay:options.replay||null,elapsed:0};
     setView('course');
     if(options.replay)setRaceCamera(`driver:${options.replay.focus}`);else if(options.demo)setRaceCamera('you');else if(options.getRace)setRaceCamera('director');
   }
@@ -129,7 +129,9 @@ export function createWorkshop(container) {
     // Every problem is visible on the car: it slides, hops and shudders while the incident lasts, and a crash spins it.
     const SLIDES=['understeer','brakefade','contact','aquaplane','coldslide','crash','tyreshred'];
     const severity=incident?(incident.type==='crash'?1:incident.type==='fire'?0:.55):0;
-    const shudder=incident&&!reducedMotion&&incident.type!=='fire'?Math.sin(elapsed*34+actor.lane*9):0;
+    // The shake runs on its own real-time clock: tied to race time it aliased into random jitter at 30 fps and 2×.
+    // It swells and fades with the incident instead of switching on at full strength.
+    const shudder=incident&&!reducedMotion&&incident.type!=='fire'?Math.sin((active?.shake??0)*.025+actor.lane*9)*sway:0;
     // The car is ~0.82 wide; keep its outer wheel inside the barrier at 1.70.
     const parkingLane=(actor.entry.id==='you'?1:-1)*1.25;
     const pullAside=incident?.type==='fire'&&!active?.demo?Math.min(1,incident.progress):0;
@@ -276,10 +278,10 @@ export function createWorkshop(container) {
   const observer=new ResizeObserver(()=>{const width=container.clientWidth,height=container.clientHeight;if(!width||!height)return;renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();});observer.observe(container);
   resetCamera();applyViewLook();
   function tick(now){
-    if(disposed)return;frame=requestAnimationFrame(tick);if(active&&now-lastFrame<33)return;lastFrame=now;
+    if(disposed)return;frame=requestAnimationFrame(tick);if(active&&now-lastFrame<30)return;lastFrame=now;
     if(active){
       const current=active,delta=now-current.lastTick;current.lastTick=now;
-      if(!current.paused)current.playhead+=delta*current.speed;
+      if(!current.paused){current.playhead+=delta*current.speed;current.shake+=delta;}
       const age=current.playhead,progress=Math.max(0,Math.min(1,(age-current.countdown)/current.duration));
       if(current.getRace){
         const race=current.getRace(),replay=current.replay,elapsed=replay?replay.from+progress*(replay.to-replay.from):progress*race.maxTime,started=!!replay||age>=current.countdown,rows=sampleRace(race,elapsed);
