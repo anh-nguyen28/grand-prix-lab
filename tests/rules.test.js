@@ -8,16 +8,14 @@ function act(state, command) { const result = transition(state, command); assert
 function qualify(state) { return act(act(state, { type: 'QUALIFY' }), { type: 'FINISH_QUALIFY' }); }
 
 test('a complete round gives explainable points and cannot score twice', () => {
-  let state = act(createGame(), { type: 'PREDICT', terrain: 'abrasive' });
-  state = act(state, { type: 'SET_PART', id: 'offroad' });
+  let state = act(createGame(), { type: 'SET_PART', id: 'offroad' });
   state = act(state, { type: 'PRACTICE' });
   state = qualify(state);
   state = act(state, { type: 'SET_PART', id: 'torque' });
   state = act(state, { type: 'RACE' });
   assert.equal(transition(state, { type: 'SET_PART', id: 'road' }).ok, false);
   state = act(state, { type: 'REVEAL' });
-  assert.equal(state.score.prediction, 3);
-  assert.equal(state.score.total, state.score.race + 3);
+  assert.equal(state.score.total, state.score.race);
   assert.equal(state.field.length, DEMO_TEAMS.length + 1);
   assert.equal(transition(state, { type: 'REVEAL' }).ok, false);
 });
@@ -48,15 +46,6 @@ test('a new round can start from the previous car, but never from an invalid one
   assert.equal(createGame(undefined, kept).runs.length, 0);
 });
 
-test('predictions lock before feedback and cannot be changed afterwards', () => {
-  let state = act(createGame(), { type: 'PREDICT', terrain: 'dry' });
-  assert.equal(transition(state, { type: 'PREDICT', terrain: 'abrasive' }).ok, false);
-  state = act(createGame(), { type: 'PRACTICE' });
-  assert.equal(state.prediction, null);
-  assert.equal(transition(state, { type: 'PREDICT', terrain: 'abrasive' }).ok, false);
-  assert.equal(transition(qualify(createGame()), { type: 'PREDICT', terrain: 'abrasive' }).ok, false);
-});
-
 test('two practice attempts are shared by a garage in either profile mode', () => {
   for (const mode of ['solo', 'team']) {
     let state = createGame({ name: 'Test garage', mode });
@@ -67,14 +56,15 @@ test('two practice attempts are shared by a garage in either profile mode', () =
   }
 });
 
-test('first scan locks the sensor and research cannot continue after qualifying', () => {
+test('the first test locks the sensor in, and a new track frees it again', () => {
   let state = act(createGame(), { type: 'SET_PART', id: 'thermal' });
-  state = act(state, { type: 'SCAN' });
-  assert.match(state.clues[0], /41°C/);
+  state = act(state, { type: 'SET_PART', id: 'radar' });
+  assert.equal(state.sensorLocked, false);
+  state = act(state, { type: 'PRACTICE' });
+  assert.equal(state.sensorLocked, true);
   assert.equal(transition(state, { type: 'SET_PART', id: 'camera' }).ok, false);
-  state = act(act(state, { type: 'SCAN' }), { type: 'SCAN' });
-  assert.equal(transition(state, { type: 'SCAN' }).ok, false);
-  assert.equal(transition(qualify(state), { type: 'SCAN' }).ok, false);
+  assert.equal(act(state, { type: 'SELECT_TRACK', id: 'mountain' }).sensorLocked, false);
+  assert.equal(act(createGame(), { type: 'QUALIFY' }).sensorLocked, true);
 });
 
 test('adjust counts changed slots, supports undo, and rejects a third slot', () => {
@@ -108,9 +98,9 @@ test('identical finish times share a place and inputs remain immutable', () => {
   assert.deepEqual(state, before);
 });
 
-test('a retired player gets no finish points but keeps the earned surface bonus',()=>{
-  let state=act(createGame(),{type:'PREDICT',terrain:'abrasive'});state=act(state,{type:'SET_PART',id:'sprint'});state=qualify(state);state=act(state,{type:'RACE'});state=act(state,{type:'REVEAL'});
-  assert.equal(state.field.find(car=>car.id==='you').retired,true);assert.equal(state.score.race,0);assert.equal(state.score.total,3);
+test('a retired player gets no finish points',()=>{
+  let state=act(createGame(),{type:'SET_PART',id:'sprint'});state=qualify(state);state=act(state,{type:'RACE'});state=act(state,{type:'REVEAL'});
+  assert.equal(state.field.find(car=>car.id==='you').retired,true);assert.equal(state.score.race,0);assert.equal(state.score.total,0);
 });
 
 test('the showroom livery is cosmetic, validated, kept across rounds and used for the race car', () => {
@@ -136,21 +126,16 @@ test('players can join a real F1 team or name their own, and the race uses that 
   assert.equal(transition(state, { type: 'SET_TEAM', team: { id: 'nova' } }).ok, false);
 });
 
-test('selecting a track resets practice and uses that track for clues, prediction and the race', () => {
-  let state = act(createGame(), { type: 'SCAN' });
-  state = act(state, { type: 'SELECT_TRACK', id: 'mountain' });
+test('selecting a track resets practice and uses that track for the race', () => {
+  let state = act(act(createGame(), { type: 'PRACTICE' }), { type: 'SELECT_TRACK', id: 'mountain' });
   assert.equal(state.trackId, 'mountain');
-  assert.equal(state.clues.length, 0);
+  assert.equal(state.runs.length, 0);
   assert.equal(state.sensorLocked, false);
-  state = act(state, { type: 'SCAN' });
-  assert.match(state.clues[0], /Water|water/);
-  assert.equal(transition(state, { type: 'PREDICT', terrain: 'sand' }).ok, false);
-  state = act(state, { type: 'PREDICT', terrain: 'rain' });
   state = act(act(state, { type: 'QUALIFY' }), { type: 'FINISH_QUALIFY' });
   state = act(state, { type: 'RACE' });
   assert.equal(state.race.trackId, 'mountain');
   state = act(state, { type: 'REVEAL' });
-  assert.equal(state.score.prediction, 3);
+  assert.equal(state.score.total, state.score.race);
 });
 
 test('track selection is only open in practice, and unknown tracks are rejected', () => {

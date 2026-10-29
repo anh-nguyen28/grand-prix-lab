@@ -28,10 +28,10 @@ export const ENGINEERING = {
   sprung: { tagline: 'Soak up the bumps', benefits: 'Soft springs keep the tyres on rough ground.', tradeoff: 'A heavy steel frame costs speed and tyre life.', watch: 'A calm car over washboard ground.', ratings: { stability: 60, lightness: 40 }, demo: 'understeer' },
   titanium: { tagline: 'Adaptive and strong', benefits: 'Adaptive dampers and a strong, light frame cope with kerbs and bumps.', tradeoff: 'Costs a lot of your budget.', watch: 'A planted car over the roughest sections.', ratings: { stability: 85, lightness: 85 }, demo: 'understeer' },
   monocoque: { tagline: 'The lightest, stiffest tub', benefits: 'The lightest frame: the best top speed and tyre life, with strong stability.', tradeoff: 'The most expensive chassis.', watch: 'Fast, stable and hard on the budget.', ratings: { stability: 80, lightness: 100 }, demo: 'understeer' },
-  camera: { tagline: 'Start with what you can see', benefits: 'Three visual observations help you identify the mystery surface.', tradeoff: 'No temperature or subsurface measurements. It still provides enough evidence to solve the round.', watch: 'The first scan locks your sensor. Sensors do not prevent mechanical failures.', ratings: null },
-  thermal: { tagline: 'Read heat and moisture', benefits: 'Three observations reveal temperature and moisture patterns.', tradeoff: 'Costs 4 credits more than the camera, credits your car could use. Temperature alone cannot identify a surface.', watch: 'Combine all three clues before making your prediction. It does not cool the car.', ratings: null },
-  lidar: { tagline: 'Map the shape of the ground', benefits: 'Three laser scans describe the shape and movement of the surface.', tradeoff: 'Costs 6 credits more than the camera. A different route to the same answer, not a racing advantage.', watch: 'A dome on a mast above the driver. It does not steer the car.', ratings: null },
-  radar: { tagline: 'Look below the surface', benefits: 'Three observations describe the structure under the top layer.', tradeoff: 'The most expensive sensor: 8 credits more than the camera. It offers a different route to the same answer, not a racing advantage.', watch: 'Use the evidence before testing. It does not steer the car for you.', ratings: null },
+  camera: { tagline: 'Spot grip trouble', benefits: 'Warns about wheelspin, aquaplaning, tyre wear and understeer after a test run.', tradeoff: 'Blind to heat, brake and crash trouble. The cheapest sensor.', watch: 'Your first test locks the sensor in. It does not fix anything by itself.', ratings: null },
+  thermal: { tagline: 'Read heat and brakes', benefits: 'Warns about overheating, brake fade, fires and cold slides after a test run.', tradeoff: 'Costs 4 credits more than the camera and misses grip and bump trouble.', watch: 'Your first test locks the sensor in. It does not cool the car.', ratings: null },
+  lidar: { tagline: 'Map bumps and kerbs', benefits: 'Warns about bump damage, kerb contact, crashes and understeer after a test run.', tradeoff: 'Costs 6 credits more than the camera and misses heat and tyre trouble.', watch: 'Your first test locks the sensor in. It does not steer the car.', ratings: null },
+  radar: { tagline: 'See everything', benefits: 'Warns about every kind of trouble after a test run.', tradeoff: 'The most expensive sensor: 8 credits more than the camera.', watch: 'Your first test locks the sensor in. Warnings still have to be fixed with parts.', ratings: null },
 };
 
 export const INCIDENTS = {
@@ -153,4 +153,19 @@ export function sectionReport(build, track = DEFAULT_TRACK) {
     })).filter(item => item.total <= BUDGET && item.gain > 0).sort((a, b) => b.gain - a.gain).slice(0, 3);
     return { section, condition: section.condition, outcome, weakStat, advice };
   });
+}
+
+// Which kinds of trouble each sensor can warn about. The radar sees all of them; the others miss some.
+export const SENSOR_SEES = {
+  camera: ['wheelspin', 'aquaplane', 'tyreshred', 'understeer'],
+  thermal: ['overheat', 'brakefade', 'fire', 'coldslide'],
+  lidar: ['bumpbreak', 'contact', 'crash', 'understeer'],
+  radar: null,
+};
+export const sensorSees = (sensor, type) => !SENSOR_SEES[sensor] || SENSOR_SEES[sensor].includes(type);
+// The most recent test: warnings are read from the car as it was tested, not as it is being edited.
+export const latestTest = state => state.qualifying || state.runs.at(-1) || null;
+export function sensorWarnings(sensor, items) {
+  const seen = items.filter(item => sensorSees(sensor, item.type));
+  return { seen, hidden: items.length - seen.length };
 }

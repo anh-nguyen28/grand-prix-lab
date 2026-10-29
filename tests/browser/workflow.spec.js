@@ -1,17 +1,11 @@
 import { test, expect } from '@playwright/test';
 
-test('desktop: scan, predict, improve, qualify, adjust, race, and reveal', async ({ page }) => {
+test('desktop: test, improve, qualify, adjust, race, and reveal', async ({ page }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.stack));
   await page.goto('/');await page.getByRole('button',{name:'Drive to the garage'}).click();
   await expect(page.locator('#scene canvas')).toBeVisible();
   await expect(page.locator('#scene')).toHaveAttribute('data-ready', 'true');
   await page.screenshot({ path: 'artifacts/workshop-desktop.png', fullPage: true });
-  for (let i = 0; i < 3; i++) { await page.getByRole('button', { name: 'Scan mystery section' }).click(); await expect(page.locator('.clue.revealed')).toHaveCount(i + 1); }
-  await page.getByRole('button', { name: 'Abrasive', exact: true }).click();
-  await page.getByRole('button', { name: 'Lock in my label' }).click();
-  await expect(page.locator('.notes-body')).toHaveAttribute('data-chapter', 'train');
-  await page.locator('[data-action="view-chapter"][data-chapter="label"]').click();
-  await expect(page.locator('.prediction')).toContainText('LOCKED');
   await page.getByRole('button', { name: /Test car/ }).click();
   await page.getByRole('button', { name: 'Skip animation' }).click();
   await expect(page.locator('.run-time')).toBeVisible({ timeout: 30000 });
@@ -64,7 +58,7 @@ test('desktop: scan, predict, improve, qualify, adjust, race, and reveal', async
   expect(errors).toEqual([]);
 });
 
-test('mobile: layout, accessible help, setup, and prediction warning', async ({ page }) => {
+test('mobile: layout, accessible help, and setup', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');await page.getByRole('button',{name:'Drive to the garage'}).click();
   await expect(page.getByRole('heading', { name: 'Your race starts in the garage.' })).toBeVisible();
@@ -83,13 +77,9 @@ test('mobile: layout, accessible help, setup, and prediction warning', async ({ 
   await page.getByRole('button',{name:'Fit Grooved tyres to car',exact:true}).click();
   await expect(page.locator('[data-action="fit-target"][data-fit-slot="wheels"]')).toContainText('Grooved tyres');
   await page.getByRole('button', { name: /Test car/ }).click();
-  await expect(page.getByRole('dialog')).toContainText('This answer does not change the car');
-  await page.getByRole('button', { name: 'Continue without bonus' }).click();
   await page.getByRole('button', { name: 'Skip animation' }).click();
   await expect(page.locator('.run-time')).toBeVisible({ timeout: 30000 });
-  await page.locator('[data-action="view-chapter"][data-chapter="label"]').click();
-  await expect(page.locator('.notes-body')).toHaveAttribute('data-chapter', 'label');
-  await expect(page.locator('.prediction')).toContainText('No prediction submitted');
+  await expect(page.locator('.lap-card:not(.is-empty)')).toHaveCount(1);
   await page.getByRole('button', { name: 'Ready to qualify' }).click();
   await expect(page.getByRole('button', { name: 'Lock build & race' })).toBeVisible({ timeout: 30000 });
   await page.getByRole('button', { name: 'Lock build & race' }).click();
@@ -116,19 +106,17 @@ test('mobile: layout, accessible help, setup, and prediction warning', async ({ 
   await expect(page.locator('.standings>div')).toHaveCount(20);
 });
 
-test('choosing a track changes the header, clues and mystery question', async ({ page }) => {
+test('choosing a track changes the header and resets practice', async ({ page }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.stack));
   await page.goto('/');
   await expect(page.locator('#round-title')).toHaveText('Dune Valley');
-  await page.getByRole('button', { name: 'Scan mystery section' }).click();
-  await expect(page.locator('.clue.revealed')).toHaveCount(1);
+  await page.getByRole('button', { name: /Test car/ }).click();
+  await page.getByRole('button', { name: 'Skip animation' }).click();
+  await expect(page.locator('.lap-card:not(.is-empty)')).toHaveCount(1, { timeout: 30000 });
   await page.getByRole('button', { name: /Tracks/ }).click();
   await expect(page.locator('.season-card')).toHaveCount(3);
   await page.locator('.season-card[data-track="mountain"]').click();
   await expect(page.locator('#round-title')).toHaveText('Mountain Pass');
-  await expect(page.locator('.clue.revealed')).toHaveCount(0);
-  for (let i = 0; i < 3; i++) { await page.getByRole('button', { name: 'Scan mystery section' }).click(); await expect(page.locator('.clue.revealed')).toHaveCount(i + 1); }
-  await expect(page.locator('.clue.revealed').first()).toContainText(/water/i);
-  await expect(page.getByRole('button', { name: 'Rain', exact: true })).toBeVisible();
+  await expect(page.locator('.lap-card:not(.is-empty)')).toHaveCount(0);
   expect(errors).toEqual([]);
 });

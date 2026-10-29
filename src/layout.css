@@ -96,14 +96,10 @@
 .chapter-chip .chapter-number{width:21px;height:21px}
 .chapter-chip.is-current .chapter-number{background:#f03643;border-color:#f03643;color:#fff}
 .chapter-chip.is-done .chapter-number{background:#173129;border-color:#2f5d4d;color:#7bd8be}
-.notes-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(220px,.65fr);gap:30px;padding-top:18px}
-.notes-story h3{font:700 19px var(--display);margin:4px 0 12px}
-.notes-story .rae-line{margin-bottom:8px}
-.notes-story .rae-line p{font-size:13px;line-height:1.7;max-width:62ch}
-.notes-story>.eyebrow,.notes-glossary>.eyebrow{font-size:8px;letter-spacing:1.2px}
+.notes-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:30px;padding-top:18px}
 .notes-activity .sensor-label{padding-top:0}
 .notes-activity .run-report{margin-top:0}
-.notes-activity .track-tests,.notes-glossary .metaphor{margin:0}
+.notes-activity .track-tests{margin:0}
 .notes-glossary .metaphor{margin-top:8px}
 .metaphor>div{transition:background-color .2s}
 .metaphor>div.active{background:#2a1820;box-shadow:inset 2px 0 #f03643}
@@ -142,5 +138,18 @@
   .notes-body,.lesson-layout{grid-template-columns:1fr;gap:18px}
   .chapter-chip>span:last-child{display:none}
   .chapter-chip{padding:4px}
-  .notes-story .rae-line p{font-size:14px}
 }
+
+/* Lap cards: two tests and qualifying side by side, then warnings and sections below. */
+.lap-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding-top:14px}
+.lap-card{position:relative;display:flex;flex-direction:column;gap:3px;padding:12px 14px;border:1px solid #2d3c52;background:#111d2b;border-radius:4px}
+.lap-card strong{font:700 24px var(--display);color:#fff}.lap-card strong small{font-size:12px;color:#99b0d0}
+.lap-card span:not(.eyebrow){font-size:11px;font-weight:700}
+.lap-card .positive{color:#7bd8be}.lap-card .negative{color:#ff8a8f}
+.lap-card.is-empty{border-style:dashed;background:none}.lap-card.is-empty strong{color:#4a5e7a}
+.lap-replay{position:absolute;top:10px;right:10px;width:26px;height:26px;display:grid;place-items:center;border:1px solid #4a5e7a;border-radius:50%;background:none;color:#c3cfdf;cursor:pointer}
+.notes-empty{display:flex;gap:8px;align-items:center;margin:0;font-size:12px;color:#99b0d0}
+.notes-body{align-items:start}
+.risks-blind{display:flex;gap:6px;align-items:center;margin:8px 0 0;font-size:10px;color:#99b0d0}
+.forecast-row.is-unseen{opacity:.7}
+@media(max-width:640px){.lap-card strong{font-size:18px}.lap-card{padding:10px}}

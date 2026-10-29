@@ -298,5 +298,5 @@ export function createWorkshop(container) {
     controls.update();updateCamera();camera.updateMatrixWorld();layoutFittings();layoutLandmarks();layoutLabels();renderer.render(scene,camera);renderPip();container.dataset.ready='true';
   }
   frame=requestAnimationFrame(tick);
-  return {setBuild,setView,setAssembly,setArmedPart,setPlayback,setRaceCamera,resetCamera,animateRun,finishAnimation,setKnowledge:revealed=>circuit.setKnowledge(revealed),setTrack,dispose(){disposed=true;cancelAnimationFrame(frame);observer.disconnect();controls.dispose();disposeGroup(scene);renderer.dispose();labelLayer.remove();fittings.remove();landmarkLayer.remove();map.remove();pipFrame.remove();}};
+  return {setBuild,setView,setAssembly,setArmedPart,setPlayback,setRaceCamera,resetCamera,animateRun,finishAnimation,setTrack,dispose(){disposed=true;cancelAnimationFrame(frame);observer.disconnect();controls.dispose();disposeGroup(scene);renderer.dispose();labelLayer.remove();fittings.remove();landmarkLayer.remove();map.remove();pipFrame.remove();}};
 }

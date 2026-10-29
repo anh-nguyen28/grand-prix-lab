@@ -35,10 +35,10 @@ export const PARTS = {
   sprung: { id: 'sprung', slot: 'chassis', name: 'Soft-sprung steel', cost: 14, pace: { straight: .1, loose: 0, technical: .04 }, description: 'Heavy, but soft springs soak up bumps.', trait: 'Bump soaker', color: '#6e7683' },
   titanium: { id: 'titanium', slot: 'chassis', name: 'Titanium adaptive', cost: 22, pace: { straight: .03, loose: 0, technical: -.02 }, description: 'Adaptive dampers and a strong, light frame.', trait: 'Adaptive ride', color: '#8fa0b6' },
   monocoque: { id: 'monocoque', slot: 'chassis', name: 'Carbon monocoque', cost: 26, pace: { straight: -.08, loose: 0, technical: -.06 }, description: 'The lightest, stiffest tub. Expensive.', trait: 'Lightest frame', color: '#20252e' },
-  camera: { id: 'camera', slot: 'sensor', name: 'Field camera', cost: 4, description: 'Read the surface through visual observations.', trait: 'Visual clues', color: '#343e3b' },
-  thermal: { id: 'thermal', slot: 'sensor', name: 'Thermal scanner', cost: 8, description: 'Explore heat and moisture on the course.', trait: 'Heat + moisture clues', color: '#df815a' },
-  lidar: { id: 'lidar', slot: 'sensor', name: 'Lidar scanner', cost: 10, description: 'Laser points map the exact shape of the surface.', trait: 'Shape + texture clues', color: '#2f6f7a' },
-  radar: { id: 'radar', slot: 'sensor', name: 'Ground radar', cost: 12, description: 'Look beneath the surface for structural clues.', trait: 'Surface structure clues', color: '#8b9a89' },
+  camera: { id: 'camera', slot: 'sensor', name: 'Field camera', cost: 4, description: 'Warns about grip and tyre trouble you can see on the surface.', trait: 'Grip warnings', color: '#343e3b' },
+  thermal: { id: 'thermal', slot: 'sensor', name: 'Thermal scanner', cost: 8, description: 'Warns about heat, cooling and brake trouble.', trait: 'Heat warnings', color: '#df815a' },
+  lidar: { id: 'lidar', slot: 'sensor', name: 'Lidar scanner', cost: 10, description: 'Warns about bumps, kerbs and crash trouble.', trait: 'Ride warnings', color: '#2f6f7a' },
+  radar: { id: 'radar', slot: 'sensor', name: 'Ground radar', cost: 12, description: 'Sees every kind of trouble before the race.', trait: 'Full warnings', color: '#8b9a89' },
 };
 for (const [id, stats] of Object.entries(PART_STATS)) PARTS[id].stats = stats;
 

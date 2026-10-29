@@ -2,9 +2,8 @@ import * as THREE from 'three';
 import { box, cylinder, material, batchStaticGeometry } from './geometry.js';
 import { DEFAULT_TRACK } from '../../shared/tracks.js';
 
-// Each section's tarmac is tinted by its condition. The mystery section stays neutral until the answer is revealed.
+// Each section's tarmac is tinted by its condition.
 export const CONDITION_TINT = { dry: '#3a4350', abrasive: '#6d5a45', damp: '#2f4658', cold: '#4a5d70', bumpy: '#5a4a3a', hot: '#7a4a3a', rain: '#243a52' };
-const HIDDEN_TINT = '#4b5260';
 
 
 function ribbon(curve, width, mat, from = 0, to = 1, height = 0) {
@@ -24,8 +23,7 @@ export function makeCircuit(track = DEFAULT_TRACK) {
   box(group, [43.9, .12, 32.9], [-1, .26, 0], material('#345548'), .15);
   const curve=new THREE.CatmullRomCurve3(track.points.map(point=>new THREE.Vector3(...point)),true,'catmullrom',.32);
   group.add(ribbon(curve, 3.4, material('#397e6b'), 0, 1, -.01));
-  const mysteryMaterial = material(HIDDEN_TINT), mysteryTint = CONDITION_TINT[track.sections.find(section => section.id === track.mystery.section).condition];
-  for (const section of track.sections) group.add(ribbon(curve, 2.35, section.id === track.mystery.section ? mysteryMaterial : material(CONDITION_TINT[section.condition]), section.from, section.to, .01));
+  for (const section of track.sections) group.add(ribbon(curve, 2.35, material(CONDITION_TINT[section.condition]), section.from, section.to, .01));
   // A pale edge along wet sections shows where the water is.
   for (const section of track.sections.filter(item => ['damp', 'rain'].includes(item.condition))) group.add(ribbon(curve, 2.7, material('#7fb2d6'), section.from, section.to, .005));
   for (let i = 0; i < 240; i++) {
@@ -68,5 +66,5 @@ export function makeCircuit(track = DEFAULT_TRACK) {
   const landmarks=track.landmarks.map(mark=>{const point=curve.getPointAt(mark.at),tangent=curve.getTangentAt(mark.at);return {...mark,position:new THREE.Vector3(point.x+tangent.z*2.3,.6,point.z-tangent.x*2.3)};});
   const mapPoints=curve.getSpacedPoints(100).map(point=>[point.x,point.z]);
   batchStaticGeometry(group);
-  return { group, curve, landmarks, mapPoints, setKnowledge(revealed) { mysteryMaterial.color.set(revealed ? mysteryTint : HIDDEN_TINT); } };
+  return { group, curve, landmarks, mapPoints };
 }
