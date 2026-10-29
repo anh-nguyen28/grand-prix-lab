@@ -75,8 +75,41 @@ Then open **http://127.0.0.1:4174**. On macOS you can also double-click **Start 
 | **Race chat** | Race control, rivals reacting to what happens on track, and your own messages and reactions. |
 | **Field notes** | Rae, your race engineer, explains each step as teaching an AI: data → label → training → validation → real world. |
 
+## Infrastructure
+
+The architecture is designed for live multiplayer sessions: a host runs a room, about 40 players join with a code, and everyone races on one server-timed grid. The game rules are pure and deterministic, so the same code runs in the browser and on the server.
+
+```mermaid
+flowchart LR
+  P["Players<br/>web app"] -- "commands" --> S
+  H["Host console<br/>+ projector view"] -- "phase controls" --> S
+  S["Game server<br/>Node + Colyseus<br/>shared game rules"] -- "snapshots" --> P
+  S -- "snapshots" --> H
+  S --- DB[("PostgreSQL<br/>rooms, builds, results")]
+  S -.- R[("Redis<br/>horizontal scaling")]
+```
+
+| Layer | Design | Why |
+|---|---|---|
+| **Client** | TypeScript and a component UI layer, with three.js for the 3D garage, showroom and circuit | Shared types keep client and server data in step. Rendering stays separate from game logic. |
+| **Game server** | Node.js and TypeScript, with [Colyseus](https://colyseus.io) rooms over WebSockets | Rooms, joining, state sync and reconnecting, running the same rules module as the client. |
+| **Authority** | The server owns the clock, the race timeline and ERS boost timestamps | Clients send commands and only display what comes back, so no client can change an outcome. |
+| **Session** | One session interface (`getSnapshot`, `subscribe`, `dispatch`) with local and WebSocket adapters | Views never change between single-player and multiplayer. |
+| **Data** | PostgreSQL for hosts, rooms, players, builds, runs and results; Redis for shared room state across server instances | Results history supports progress tracking across sessions. |
+| **Identity** | Hosts sign in with an email link or Google. Players join with a room code and a name. | No accounts for players; history and controls for hosts. |
+| **Content** | Parts, tracks and rivals as versioned data, gated by an automated balance check | Balance can be tuned without a code deploy. |
+| **Operations** | Static frontend on a CDN, WebSocket servers on Fly.io or Render, managed Postgres, CI on every pull request, error monitoring | Long-lived connections, preview deploys, and room metrics such as players connected and latency. |
+
+**Surfaces:** player app, host console (create a room, run each phase, pause the race, manage players), projector view using the broadcast cameras, and a progress dashboard for hosts.
+
+**Design notes**
+
+- Races are deterministic, so a full race timeline can be sent at lights out with no lag. Streaming it in chunks keeps results hidden until they happen.
+- Chat rules (length, rate limit, word filter) live in the shared rules module, so the server enforces exactly what the client shows.
+- The repository is organised to split into `packages/shared`, `apps/web` and `apps/server` without changing behaviour.
+
 <details>
-<summary><b>How it's built</b></summary>
+<summary><b>How the prototype is built</b></summary>
 
 <br>
 
